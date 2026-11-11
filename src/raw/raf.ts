@@ -184,7 +184,7 @@ const FILM_MODE: Record<number, string> = {
 }
 /** Saturation tag also tells B&W film simulations apart. */
 const SATURATION: Record<number, string> = {
-  0x0: '0', 0x80: '+1', 0x100: '+2', 0xC0: '+3', 0xE0: '+4', 0x180: '-1', 0x200: '-2', 0x400: '-3', 0x4C0: '-4',
+  0x0: '0', 0x80: '+1', 0x100: '+2', 0xC0: '+3', 0xE0: '+4', 0x180: '-1', 0x200: 'Low', 0x400: '-2', 0x4C0: '-3', 0x4E0: '-4',
   0x300: 'B&W', 0x301: 'B&W Red', 0x302: 'B&W Yellow', 0x303: 'B&W Green', 0x310: 'Sepia',
   0x500: 'Acros', 0x501: 'Acros Red', 0x502: 'Acros Yellow', 0x503: 'Acros Green', 0x8000: 'Film Simulation',
 }
@@ -195,6 +195,9 @@ const WHITE_BALANCE: Record<number, string> = {
   0x0: 'Auto', 0x1: 'Auto (white priority)', 0x2: 'Auto (ambience priority)', 0x100: 'Daylight', 0x200: 'Cloudy/Shade',
   0x300: 'Daylight Fluorescent', 0x301: 'Day White Fluorescent', 0x302: 'White Fluorescent', 0x400: 'Incandescent',
   0x600: 'Underwater', 0xF00: 'Custom', 0xF01: 'Custom 2', 0xF02: 'Custom 3', 0xFF0: 'Kelvin',
+}
+const NOISE_REDUCTION: Record<number, string> = {
+  0x0: '0', 0x180: '+1', 0x100: '+2', 0x1C0: '+3', 0x1E0: '+4', 0x280: '-1', 0x200: '-2', 0x2C0: '-3', 0x2E0: '-4',
 }
 const OFF_WEAK_STRONG: Record<number, string> = { 0: 'Off', 0x20: 'Weak', 0x40: 'Strong' }
 const GRAIN_SIZE: Record<number, string> = { 0: 'Off', 0x10: 'Small', 0x20: 'Large' }
@@ -226,7 +229,7 @@ export function describeFujiExif(exif: ExifData): [string, string, string][] {
   add('Shadow', 0x1040, tone)
   add('Sharpness', 0x1001, v => SHARPNESS[v] ?? '?')
   add('Clarity', 0x100F, v => String(v / 1000))
-  add('High ISO NR', 0x100E, v => `raw ${v}`)
+  add('High ISO NR', 0x100E, v => NOISE_REDUCTION[v] ?? `raw ${v}`)
   add('White balance', 0x1002, v => WHITE_BALANCE[v] ?? '?')
   add('Color temp', 0x1005, v => `${v} K`)
   const ft = f.get(0x100A)
@@ -240,6 +243,8 @@ export function describeFujiExif(exif: ExifData): [string, string, string][] {
   add('DR setting', 0x1402, v => DR_SETTING[v] ?? '?')
   add('Development DR', 0x1403, v => `${v}%`)
   add('D-Range Priority', 0x1443, v => (v === 0 ? 'Auto' : v === 1 ? 'Fixed' : '?'))
+  add('DRP strength (auto)', 0x1444, v => (v === 1 ? 'Weak' : v === 2 ? 'Strong' : '?'))
+  add('DRP strength (fixed)', 0x1445, v => (v === 1 ? 'Weak' : v === 2 ? 'Strong' : '?'))
   add('Mono warm/cool', 0x1049, v => String(v))
   add('Mono magenta/green', 0x104B, v => String(v))
   return rows

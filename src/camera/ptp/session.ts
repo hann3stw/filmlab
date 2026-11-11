@@ -215,8 +215,8 @@ export class FujiCamera {
   }
 
   /** Connect to camera (opens USB device + PTP session) */
-  async connect(): Promise<{ ok: true } | { ok: false, error: string }> {
-    const result = await this.transport.connect()
+  async connect(known?: USBDevice): Promise<{ ok: true } | { ok: false, error: string }> {
+    const result = await this.transport.connect(known)
     if (!result.ok) return result
 
     if (!await this.openSession()) return { ok: false, error: 'other' }
@@ -823,6 +823,33 @@ export class FujiCamera {
     }
 
     throw new Error(`Conversion timeout after ${timeoutMs / 1000}s`)
+  }
+
+  /**
+   * FilmLab: true if the camera offers the Fuji RAW-conversion commands.
+   * If not, it is almost certainly in the wrong USB mode (e.g. tethering or
+   * card reader) — the user must pick "USB RAW CONV./BACKUP RESTORE".
+   */
+  get supportsRawConversion(): boolean {
+    const ops = this.deviceInfo?.operations
+    if (!ops) return true // unknown → don't block
+    return ops.includes(FujiOp.SendObjectInfo) && ops.includes(FujiOp.SendObject2)
+  }
+
+  /**
+   * FilmLab: upload a RAF and read its base profile WITHOUT converting it.
+   * The editor uses this when it is going to render with its own settings
+   * right away anyway — saves one conversion (~0.5 s).
+   */
+  async uploadRaf(data: ArrayBuffer, hooks: ConvertHooks = {}): Promise<void> {
+    return this.enqueue('default', async () => {
+      this.rafLoaded = false
+      hooks.onStage?.('upload')
+      await this.sendRaf(data, hooks.onUploadProgress)
+      hooks.onStage?.('profile')
+      this.baseProfile = await this.getProfile()
+      this.rafLoaded = true
+    })
   }
 
   /**

@@ -67,15 +67,20 @@ export class USBTransport {
     Other: 'other',
   } as const
 
-  async connect(): Promise<{ ok: true } | { ok: false, error: string, detail: string }> {
+  /**
+   * FilmLab: `known` = a device the user already allowed earlier (from
+   * navigator.usb.getDevices()). Then no picker dialog is needed, which makes
+   * automatic reconnecting possible ("Waiting for camera…").
+   */
+  async connect(known?: USBDevice): Promise<{ ok: true } | { ok: false, error: string, detail: string }> {
     if (!USBTransport.isSupported()) {
       this.log('WebUSB not supported in this browser (need Chromium-based)')
       return { ok: false, error: 'other', detail: 'WebUSB not supported' }
     }
 
     try {
-      // Request device — browser shows picker dialog
-      this.device = await navigator.usb.requestDevice({
+      // Request device — browser shows picker dialog (unless already allowed)
+      this.device = known ?? await navigator.usb.requestDevice({
         filters: [{ vendorId: FUJI_VENDOR_ID }],
       })
 

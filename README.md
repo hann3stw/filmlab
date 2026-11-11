@@ -5,7 +5,28 @@ Chrome on Android. RAW files are converted **inside the camera** over WebUSB —
 the same principle as Fujifilm X RAW Studio — and film recipes can be managed
 and loaded onto the camera's custom slots.
 
-**Status: Phase 0.1 — connection check + diagnostics.**
+**Status: Phase 1 — core (connect, import, in-camera editor).**
+
+## Project structure
+
+```
+src/
+├── main.ts                 app entry: routes, camera service, service worker
+├── diagnostics.ts          entry of diagnostics.html (Phase 0 test page)
+├── app/                    shell (bottom nav + router), shared components
+├── views/                  screens: home, library, recipes, camera, editor
+├── camera/
+│   ├── camera-service.ts   the one shared camera connection (auto-reconnect)
+│   ├── ptp/  profile/  util/   ← ported from FilmKit (MIT)
+├── recipes/recipe.ts       Recipe model, X-T30 III value tables, EXIF → recipe,
+│                           recipe → camera profile patch
+├── raw/raf.ts              RAF header + EXIF/MakerNote reader
+├── library/photos.ts       import, thumbnails, results (OPFS + IndexedDB)
+├── storage/                OPFS + IndexedDB helpers
+├── i18n/                   German / English texts
+└── ui/                     DOM helpers, icons, debug log
+sw/sw.template.js           service worker (offline) — filled in at build time
+```
 
 ## Credits & license
 

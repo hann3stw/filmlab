@@ -1,24 +1,32 @@
 /**
- * FilmLab entry point.
+ * FilmLab app entry point.
  *
- * Phase 0: shows only the connection check page. In Phase 1 this file will
- * set up the real app (bottom navigation, screens, service worker) and the
- * check page will live on as a "Diagnostics" screen.
+ * Sets up: styles, error logging, the camera service, the screens (routes)
+ * and the service worker (offline support + "install app").
  */
-
-// Fonts are bundled with the app (not loaded from Google), so they work offline.
-import '@fontsource/fraunces/400.css'
-import '@fontsource/fraunces/500.css'
-import '@fontsource/ibm-plex-sans/400.css'
-import '@fontsource/ibm-plex-sans/600.css'
-import '@fontsource/ibm-plex-mono/400.css'
-import '@fontsource/ibm-plex-mono/500.css'
-
+import './fonts.ts'
 import './styles/base.css'
-import './phase0/check-page.css'
+import './styles/app.css'
 
-import { mountCheckPage } from './phase0/check-page.ts'
-import { installGlobalErrorHandlers } from './ui/debug-log.ts'
+import { installGlobalErrorHandlers, log } from './ui/debug-log.ts'
+import { addRoute, startShell } from './app/shell.ts'
+import { cameraService } from './camera/camera-service.ts'
+import { homeView } from './views/home.ts'
+import { libraryView } from './views/library.ts'
+import { recipesView } from './views/recipes.ts'
+import { cameraView } from './views/camera.ts'
+import { editorView } from './views/editor.ts'
+import { registerServiceWorker } from './app/sw-register.ts'
 
 installGlobalErrorHandlers()
-mountCheckPage(document.getElementById('app')!)
+log(`FilmLab ${__APP_VERSION__} starting · WebUSB ${'usb' in navigator ? 'yes' : 'NO'}`)
+
+addRoute('home', homeView)
+addRoute('library', libraryView)
+addRoute('recipes', recipesView)
+addRoute('camera', cameraView)
+addRoute('edit', editorView, { tab: 'library', fullscreen: true })
+
+startShell(document.getElementById('app')!)
+void cameraService.init()
+registerServiceWorker()
