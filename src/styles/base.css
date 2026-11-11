@@ -1,0 +1,117 @@
+/*
+ * FilmLab design tokens + base styles.
+ *
+ * "Tokens" are named values (colors, sizes) defined once as CSS variables
+ * and reused everywhere. Change a color here and the whole app follows.
+ */
+
+:root {
+  /* Paper & ink */
+  --paper:       #EFE7D6;  /* warm paper-beige background */
+  --paper-2:     #E7DDC8;  /* slightly darker paper for cards/insets */
+  --paper-3:     #DCD0B7;  /* pressed / selected state */
+  --ink:         #2A2A22;  /* main text — warm near-black */
+  --ink-soft:    #6A6555;  /* secondary text */
+  --ink-faint:   #9A937E;  /* hints, disabled */
+  --line:        rgba(42, 42, 34, 0.16); /* thin divider lines */
+
+  /* Accent */
+  --olive:       #3B4527;  /* dark olive green — primary accent */
+  --olive-2:     #4F5C35;  /* lighter olive for hover/pressed */
+  --on-olive:    #F3EDE0;  /* text on olive */
+  --brass:       #A88A4E;  /* small warm highlight */
+  --danger:      #8E3B2B;
+  --ok:          #4F6B33;
+
+  /* Type */
+  --font-serif: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --font-sans:  'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono:  'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* Sizes */
+  --radius: 14px;
+  --touch: 48px;            /* minimum touch target (Android guideline) */
+  --gutter: 16px;
+
+  color-scheme: light;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* The HTML "hidden" attribute must always win, even over display:flex rules. */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/* Uppercase monospace labels — the "analog spec sheet" look */
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+hr, .divider {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 0;
+}
+
+/* ---- Buttons ---------------------------------------------------------- */
+
+.btn {
+  appearance: none;
+  min-height: var(--touch);
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid var(--olive);
+  background: var(--olive);
+  color: var(--on-olive);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s, opacity 0.15s;
+}
+.btn:active { background: var(--olive-2); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+
+.btn.ghost {
+  background: transparent;
+  color: var(--olive);
+}
+.btn.ghost:active { background: var(--paper-3); }
+
+.btn.small {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+
+/* ---- Focus (keyboard / accessibility) ------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
