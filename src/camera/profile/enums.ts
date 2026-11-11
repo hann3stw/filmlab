@@ -76,6 +76,7 @@ export const WBMode = {
   Fluorescent3:     0x8003,
   Shade:            0x8006,
   ColorTemp:        0x8007,
+  WhitePriority:    0x8020,  // FilmLab: "AUTO White Priority" — seen in X-T30 III slots C1/C7
   AmbiencePriority: 0x8021,  // Auto WB sub-mode (confirmed from preset scan)
 } as const
 
@@ -90,6 +91,7 @@ export const WBModeLabels: Record<number, string> = {
   [WBMode.Incandescent]:     'Incandescent',
   [WBMode.Underwater]:       'Underwater',
   [WBMode.ColorTemp]:        'Color Temperature',
+  [WBMode.WhitePriority]:    'Auto White Priority',
   [WBMode.AmbiencePriority]: 'Ambience Priority',
 }
 

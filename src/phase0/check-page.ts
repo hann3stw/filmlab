@@ -18,6 +18,8 @@ import { FilmSimLabels, WBModeLabels } from '../camera/profile/enums.ts'
 import { translatePresetToUI, cameraProfileToUIValues, type PresetUIValues } from '../camera/profile/preset-translate.ts'
 import { patchProfile } from '../camera/profile/d185.ts'
 import { log, createDebugPanel } from '../ui/debug-log.ts'
+import { parseRaf, describeFujiExif } from '../raw/raf.ts'
+import { dumpProfile, patchIndices } from '../camera/profile/profile-dump.ts'
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -47,13 +49,6 @@ function hex4(n: number): string {
   return '0x' + n.toString(16).toUpperCase().padStart(4, '0')
 }
 
-/** Every RAF file starts with these ASCII bytes — a quick sanity check. */
-const RAF_MAGIC = 'FUJIFILMCCD-RAW'
-
-function isRaf(buf: ArrayBuffer): boolean {
-  const head = new Uint8Array(buf, 0, Math.min(RAF_MAGIC.length, buf.byteLength))
-  return String.fromCharCode(...head) === RAF_MAGIC
-}
 
 /**
  * Compact one-line summary of a recipe, e.g.
@@ -97,7 +92,7 @@ export function mountCheckPage(root: HTMLElement): void {
       <img src="./icons/logo.svg" alt="" width="40" height="40" />
       <div>
         <h1>FilmLab</h1>
-        <div class="label">Phase 0 · connection check · v${__APP_VERSION__}</div>
+        <div class="label">Phase 0.1 · connection check · v${__APP_VERSION__}</div>
       </div>
     </header>
 
@@ -138,6 +133,7 @@ export function mountCheckPage(root: HTMLElement): void {
           <input type="file" id="raf-input" hidden />
           <span class="file-name" id="raf-name">No file selected</span>
         </div>
+        <div id="raf-info"></div>
         <div class="row wrap">
           <button class="btn" id="btn-convert" disabled>Convert in camera</button>
           <button class="btn ghost" id="btn-reconvert" disabled title="Same RAF, no upload — like an editor re-render">Convert again</button>
@@ -145,11 +141,23 @@ export function mountCheckPage(root: HTMLElement): void {
         <div class="row wrap">
           <label class="label" for="poll-select">Result poll interval</label>
           <select id="poll-select" class="select">
-            <option value="1000" selected>1000 ms (FilmKit default)</option>
+            <option value="1000">1000 ms (FilmKit default)</option>
             <option value="500">500 ms</option>
-            <option value="250">250 ms</option>
+            <option value="250" selected>250 ms</option>
           </select>
         </div>
+        <label class="row check">
+          <input type="checkbox" id="fullres" checked />
+          <span>Full resolution <span class="label">(D183 = 1 · off = quick preview)</span></span>
+        </label>
+        <div class="row wrap">
+          <button class="btn small ghost" id="btn-test-a" disabled>Test A · FilmKit layout</button>
+          <button class="btn small ghost" id="btn-test-b" disabled>Test B · rawji layout</button>
+        </div>
+        <p class="hint">Tests A/B try to switch the film simulation to <b>ACROS</b> (B&amp;W) using
+          two different guesses of the profile layout. The one that gives a black-and-white
+          image is correct for your camera — the other may fail or look odd. That's expected.</p>
+        <div id="profile-dump"></div>
 
         <div class="progress" id="progress" hidden><div class="bar"></div><span class="label" id="progress-text"></span></div>
 
@@ -197,6 +205,9 @@ export function mountCheckPage(root: HTMLElement): void {
   const btnDevInfo = $<HTMLButtonElement>(root, '#btn-devinfo')
   const rafInput = $<HTMLInputElement>(root, '#raf-input')
   const pollSelect = $<HTMLSelectElement>(root, '#poll-select')
+  const fullresBox = $<HTMLInputElement>(root, '#fullres')
+  const btnTestA = $<HTMLButtonElement>(root, '#btn-test-a')
+  const btnTestB = $<HTMLButtonElement>(root, '#btn-test-b')
   const statusEl = $(root, '#cam-status')
   const progressEl = $(root, '#progress')
   const progressBar = $(progressEl, '.bar')
@@ -227,6 +238,8 @@ export function mountCheckPage(root: HTMLElement): void {
     btnDisconnect.hidden = !connected
     btnConvert.disabled = !connected || !rafBuffer || busy
     btnReconvert.disabled = !connected || !camera?.rafLoaded || busy
+    btnTestA.disabled = btnReconvert.disabled
+    btnTestB.disabled = btnReconvert.disabled
     btnSlots.disabled = !connected || busy
     btnDescs.disabled = !connected || busy
     btnDevInfo.disabled = !connected || busy
@@ -249,6 +262,7 @@ export function mountCheckPage(root: HTMLElement): void {
 
     const cam = new FujiCamera(msg => log(msg))
     cam.pollIntervalMs = Number(pollSelect.value)
+    cam.fullResolution = fullresBox.checked
     const res = await cam.connect()
     if (!res.ok) {
       setStatus('Not connected', 'off')
@@ -306,6 +320,11 @@ export function mountCheckPage(root: HTMLElement): void {
   // Close the PTP session when the page is closed, so the next connect is clean.
   window.addEventListener('beforeunload', () => camera?.emergencyClose())
 
+  fullresBox.addEventListener('change', () => {
+    if (camera) camera.fullResolution = fullresBox.checked
+    log(`Full resolution: ${fullresBox.checked ? 'on (D183=1)' : 'off (D183=0, preview)'}`)
+  })
+
   pollSelect.addEventListener('change', () => {
     if (camera) camera.pollIntervalMs = Number(pollSelect.value)
     log(`Result poll interval: ${pollSelect.value} ms`)
@@ -322,19 +341,68 @@ export function mountCheckPage(root: HTMLElement): void {
     const t0 = performance.now()
     const buf = await file.arrayBuffer()
     log(`File read into memory in ${fmtSec(performance.now() - t0)}`)
-    if (!isRaf(buf)) {
-      log(`"${file.name}" is not a Fujifilm RAF file (missing "${RAF_MAGIC}" header)`, 'error')
+    let info
+    try {
+      info = parseRaf(buf)
+    } catch (err) {
+      log(`"${file.name}" is not a readable Fujifilm RAF file: ${err}`, 'error')
       rafBuffer = null
       $(root, '#raf-name').textContent = 'Not a RAF file'
+      $(root, '#raf-info').innerHTML = ''
       updateButtons()
       return
     }
+    showRafInfo(info)
     rafBuffer = buf
     rafName = file.name
     $(root, '#raf-name').textContent = `${file.name} · ${fmtMB(file.size)}`
     if (camera) camera.rafLoaded = false // a new file must be uploaded first
     updateButtons()
   })
+
+  /**
+   * Show what the RAF itself says (header + EXIF of its embedded JPEG).
+   * This is the "ground truth" of how the photo was shot, which we compare
+   * against the camera's D185 profile to confirm the field layout.
+   */
+  let previewUrl: string | null = null
+  function showRafInfo(info: ReturnType<typeof parseRaf>) {
+    const rows = describeFujiExif(info.exif)
+    log(`RAF: ${info.cameraName} · shot ${info.exif.dateTimeOriginal ?? '?'} · embedded preview ${fmtMB(info.previewJpeg.length)}`)
+    log('RAF EXIF (as shot):')
+    for (const [label, val, raw] of rows) log(`    ${label.padEnd(20)} ${val.padEnd(26)} ${raw}`)
+    if (rows.length === 0) log('    (no Fujifilm MakerNote found)', 'warn')
+
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    previewUrl = URL.createObjectURL(new Blob([info.previewJpeg as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' }))
+    $(root, '#raf-info').innerHTML = `
+      <div class="raf-info">
+        <img src="${previewUrl}" alt="Embedded preview" />
+        <div>
+          <div class="label">${esc(info.cameraName)} · ${esc(info.exif.dateTimeOriginal ?? '')}</div>
+          <table class="props"><tbody>${rows.map(([l, v]) =>
+            `<tr><td class="label">${esc(l)}</td><td>${esc(v)}</td></tr>`).join('')}</tbody></table>
+        </div>
+      </div>`
+  }
+
+  /** Log + show all D185 parameters next to FilmKit's and rawji's names. */
+  function showProfileDump(profile: Uint8Array) {
+    const d = dumpProfile(profile)
+    log(`D185 profile: ${d.totalBytes} bytes, ${d.numParams} params at offset ${d.paramsOffset}, IOP code "${d.iopCode}"`)
+    log('    idx      value  FilmKit name        rawji name')
+    for (const p of d.params) {
+      log(`    ${String(p.index).padStart(3)} ${String(p.value).padStart(10)}  ${p.filmkit.padEnd(18)}  ${p.rawji}`)
+    }
+    $(root, '#profile-dump').innerHTML = `
+      <details class="slot">
+        <summary><span class="slot-name">D185 profile (${d.totalBytes} bytes, IOP ${esc(d.iopCode)})</span></summary>
+        <table class="props"><tbody>
+          <tr><td class="label">idx</td><td class="label">value</td><td class="label">FilmKit</td><td class="label">rawji</td></tr>
+          ${d.params.map(p => `<tr><td>${p.index}</td><td>${p.value}</td><td>${p.filmkit}</td><td>${p.rawji}</td></tr>`).join('')}
+        </tbody></table>
+      </details>`
+  }
 
   /** Human-readable names for the stages reported by FujiCamera. */
   const STAGE_LABEL: Record<Exclude<ConvertStage, 'done'>, string> = {
@@ -349,7 +417,7 @@ export function mountCheckPage(root: HTMLElement): void {
    * We record performance.now() whenever a new stage starts; the difference
    * between two timestamps is that stage's duration.
    */
-  async function runConversion(kind: 'first' | 'again') {
+  async function runConversion(kind: 'first' | 'again' | 'testA' | 'testB') {
     if (!camera || busy) return
     busy = true; updateButtons()
 
@@ -370,7 +438,13 @@ export function mountCheckPage(root: HTMLElement): void {
 
     progressEl.hidden = false
     progressBar.style.width = '0%'
-    log(kind === 'first' ? `--- Converting ${rafName} (upload + convert) ---` : '--- Converting again (no upload) ---')
+    const title = {
+      first: `--- Converting ${rafName} (upload + convert) ---`,
+      again: '--- Converting again (no upload) ---',
+      testA: '--- Test A: FilmKit layout — idx 8 := ACROS (12) ---',
+      testB: '--- Test B: rawji layout — idx 7 := ACROS (12) ---',
+    }[kind]
+    log(title)
 
     try {
       let jpeg: Uint8Array
@@ -378,12 +452,17 @@ export function mountCheckPage(root: HTMLElement): void {
         jpeg = await camera.loadRaf(rafBuffer!, { onStage, onUploadProgress })
         if (camera.baseProfile) {
           const v = cameraProfileToUIValues(camera.baseProfile)
-          log(`As-shot settings in RAF: ${summarize(v)}`)
+          log(`As-shot settings (decoded with FilmKit layout): ${summarize(v)}`)
+          showProfileDump(camera.baseProfile)
         }
-      } else {
+      } else if (kind === 'again') {
         // Same profile again, patched with "no changes" — exactly what the
         // editor will do on every slider change (minus the actual change).
         jpeg = await camera.reconvert(base => patchProfile(base, {}), { onStage })
+      } else {
+        // Diagnostic: write ACROS (film sim 0x0C) at the index each reference expects.
+        const idx = kind === 'testA' ? 8 : 7
+        jpeg = await camera.reconvert(base => patchIndices(base, { [idx]: 0x0C }), { onStage })
       }
       const total = performance.now() - t0
 
@@ -430,6 +509,8 @@ export function mountCheckPage(root: HTMLElement): void {
 
   btnConvert.addEventListener('click', () => runConversion('first'))
   btnReconvert.addEventListener('click', () => runConversion('again'))
+  btnTestA.addEventListener('click', () => runConversion('testA'))
+  btnTestB.addEventListener('click', () => runConversion('testB'))
 
   // Tap the image → full screen; tap again → back.
   resultImg.addEventListener('click', () => {

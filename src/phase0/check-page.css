@@ -164,3 +164,9 @@
   .stack > .debug { grid-column: 1 / -1; }
   .log-list { height: 360px; }
 }
+
+/* ---- RAF info (embedded preview + EXIF) ---- */
+.raf-info { display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: start; }
+.raf-info img { width: 120px; border-radius: 6px; background: var(--paper-2); }
+.check { gap: 10px; min-height: var(--touch); cursor: pointer; }
+.check input { width: 22px; height: 22px; accent-color: var(--olive); }

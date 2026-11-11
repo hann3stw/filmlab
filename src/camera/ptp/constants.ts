@@ -213,7 +213,7 @@ export function formatPresetValue(propId: number, value: number | string): strin
 
     case 0xD19C: return value > 0 ? `${value}K` : 'N/A'
     case 0xD19A: case 0xD19B: return (value >= 0 ? '+' : '') + value
-    case 0xD190: return `DR${value}%`
+    case 0xD190: return value === -1 || value === 0xFFFF ? 'DR Auto' : `DR${value}%` // FilmLab: 0xFFFF = Auto
 
     // ×10 tone params (confirmed order: H, S, Color, Sharpness, Clarity)
     case 0xD19D: case 0xD19E:

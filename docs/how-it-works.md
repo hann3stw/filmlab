@@ -24,7 +24,7 @@ Code: `src/camera/ptp/container.ts`, `transport.ts`.
 | 2 | `0x900D` SendObject2 (Fuji) | the whole .RAF (25–55 MB) in 512 KB chunks |
 | 3 | `0x1015` Get prop `0xD185` | camera returns a 625-byte **conversion profile** with the as-shot settings |
 | 4 | `0x1016` Set prop `0xD185` | we send the profile back, with our changes patched in |
-| 5 | `0x1016` Set prop `0xD183` = 0 | "start converting" |
+| 5 | `0x1016` Set prop `0xD183` | "start converting": 1 = full resolution, 0 = quick preview |
 | 6 | `0x1007` GetObjectHandles (poll) | until a result object appears |
 | 7 | `0x1009` GetObject | download the full-resolution JPEG |
 | 8 | `0x100B` DeleteObject | remove the temp JPEG from the camera |

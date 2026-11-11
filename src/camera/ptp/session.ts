@@ -131,10 +131,12 @@ export class FujiCamera {
   deviceInfo: DeviceInfo | null = null
   /**
    * FilmLab: how often (ms) we ask "is the JPEG ready yet?" during a conversion.
-   * FilmKit uses 1000 ms (tested). Smaller values can make each conversion up to
-   * ~0.9 s faster — Phase 0 lets you compare on the real camera.
+   * FilmKit uses 1000 ms. On the X-T30 III, 250 ms worked fine and saved ~0.75 s
+   * per conversion (Phase 0 test, 2026-11).
    */
-  pollIntervalMs = 1000
+  pollIntervalMs = 250
+  /** FilmLab: true = full-size JPEG (D183=1), false = fast preview (D183=0). */
+  fullResolution = true
   /** Supported device property IDs from PTP DeviceInfo */
   supportedProperties: Set<number> = new Set()
   /** Base profile from the camera (cached after first RAF upload) */
@@ -361,7 +363,12 @@ export class FujiCamera {
   async getPropDesc(propId: number): Promise<PropDesc | null> {
     try {
       const { code, data } = await this.transport.sendCommand(PTPOp.GetDevicePropDesc, [propId])
-      if (code !== PTPResp.OK || data.length < 5) return null
+      if (code !== PTPResp.OK || data.length < 5) {
+        // FilmLab: log WHY, so we can see what the camera answers.
+        const hex = Array.from(data.subarray(0, 24)).map(b => b.toString(16).padStart(2, '0')).join(' ')
+        this.log(`PropDesc 0x${propId.toString(16).toUpperCase()}: ${respName(code)}, ${data.length} bytes ${hex}`)
+        return null
+      }
 
       const r = new PTPReader(data)
       const id = r.u16()
@@ -412,11 +419,17 @@ export class FujiCamera {
     return 7
   }
 
-  /** FilmLab: read the PropDesc of every custom-slot property (D18C–D1A5). Read-only. */
+  /**
+   * FilmLab: read the PropDesc of the custom-slot properties (D18C–D1A5) plus a
+   * few "live" shooting properties (D001 film sim, D007/D008 WB, …), which may
+   * list what the camera supports. Read-only.
+   */
   async scanPresetPropDescs(): Promise<PropDesc[]> {
     return this.enqueue('default', async () => {
       const out: PropDesc[] = []
-      for (let pid = 0xD18C; pid <= 0xD1A5; pid++) {
+      const ids: number[] = [0xD001, 0xD007, 0xD008, 0xD00A, 0xD017, 0xD018, 0xD01C]
+      for (let pid = 0xD18C; pid <= 0xD1A5; pid++) ids.push(pid)
+      for (const pid of ids) {
         const d = await this.getPropDesc(pid)
         if (d) out.push(d)
       }
@@ -723,11 +736,17 @@ export class FujiCamera {
     this.log('Profile sent')
   }
 
-  /** Trigger RAW conversion (set property 0xD183 to 0) */
-  async triggerConversion(): Promise<void> {
-    this.log('Triggering conversion...')
+  /**
+   * Trigger RAW conversion by writing to property 0xD183.
+   *
+   * FilmLab: the value matters! (found in rawji, confirmed on X-T30 III test):
+   *   1 = full render at the profile's image size (e.g. 6240×4160)
+   *   0 = quick preview render (FilmKit's default — gave 3120×2080 on X-T30 III)
+   */
+  async triggerConversion(fullResolution = this.fullResolution): Promise<void> {
+    this.log(`Triggering conversion (${fullResolution ? 'full resolution' : 'preview'})...`)
 
-    const data = packU16(0) as Uint8Array<ArrayBuffer>
+    const data = packU16(fullResolution ? 1 : 0) as Uint8Array<ArrayBuffer>
     const { code } = await this.transport.sendDataCommand(
       PTPOp.SetDevicePropValue,
       [FujiProp.StartRawConversion],
