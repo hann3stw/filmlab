@@ -29,5 +29,6 @@ export const icons = {
   album: svg('<rect x="4" y="6.5" width="16" height="13" rx="1.5"/><path d="M7 4h10"/><path d="m7 16 3.5-4 3 3 2-2 2.5 3"/>'),
   wand: svg('<path d="m4 20 11-11"/><path d="m13 7 2-2 2 2-2 2z"/><path d="M18 3v2M20 6h-2M19 10v1.5M8 4v1.5"/>'),
   more: svg('<circle cx="6" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="18" cy="12" r="1"/>'),
+  crop: svg('<path d="M7 3v14h14"/><path d="M3 7h14v14"/>'),
   trash: svg('<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/>'),
 }

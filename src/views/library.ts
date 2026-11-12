@@ -14,7 +14,7 @@ import { icons } from '../ui/icons.ts'
 import { t, type Dict } from '../i18n/index.ts'
 import { header, importButton } from '../app/components.ts'
 import {
-  listPhotos, onPhotosChanged, thumbUrl, deletePhotos, resultFile, exportName, markExported,
+  listPhotos, onPhotosChanged, thumbUrl, deletePhotos, outputFile, exportName, markExported,
   libraryUsage, deleteOriginals, type Photo,
 } from '../library/photos.ts'
 import { listAlbums, onAlbumsChanged, createAlbum, renameAlbum, deleteAlbum, addToAlbum, removeFromAlbum, type Album } from '../library/albums.ts'
@@ -186,7 +186,7 @@ export const libraryView: View = root => {
     const ids: string[] = []
     for (const id of selected) {
       const p = all.find(x => x.id === id)
-      const f = p?.resultSize ? await resultFile(id) : null
+      const f = p ? await outputFile(p) : null
       if (p && f) { files.push(new File([f], exportName(p), { type: 'image/jpeg' })); ids.push(id) }
     }
     const skipped = selected.size - files.length

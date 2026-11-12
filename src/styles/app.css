@@ -313,7 +313,7 @@ body.fullscreen-route .toast.show { transform: translate(-50%, 0); }
   position: fixed; inset: 0; z-index: 250; background: #111;
   display: flex; align-items: center; justify-content: center;
 }
-.fullscreen img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.fs-close { position: absolute; top: calc(var(--safe-t) + 8px); left: 8px; background: rgba(0,0,0,.45); }
 
 
 /* ===================================================================== */
@@ -501,3 +501,45 @@ body.viewer-open { overflow: hidden; }
 .diff td { padding: 7px 6px 7px 0; border-bottom: 1px solid var(--line); }
 
 .text-input.area { min-height: 160px; padding: 12px 14px; font-family: var(--font-mono); font-size: 12px; resize: vertical; }
+
+
+/* ===================================================================== */
+/* Zoomable image + crop screen                                           */
+/* ===================================================================== */
+
+.zoom { position: relative; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; touch-action: pan-y; }
+.zoom-frame { position: relative; flex: none; overflow: hidden; will-change: transform; }
+.zoom-frame img { position: absolute; max-width: none; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+.zoom.zoomed { cursor: grab; }
+
+.cropper {
+  position: fixed; inset: 0; z-index: 260; background: #0E0E0C; color: #ECE5D5;
+  display: grid; grid-template-rows: 1fr auto auto;
+  padding: calc(var(--safe-t) + 12px) 0 calc(var(--safe-b) + 12px);
+}
+.crop-stage { min-height: 0; display: flex; align-items: center; justify-content: center; padding: 16px 24px; }
+.crop-area { position: relative; max-width: 100%; max-height: 100%; display: flex; touch-action: none; overflow: hidden; /* keeps the dark shadow inside the image */ }
+.crop-area img { display: block; max-width: 100%; max-height: calc(100dvh - 220px); object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.crop-box {
+  position: absolute; border: 1.5px solid #ECE5D5; cursor: move; touch-action: none;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); /* darkens everything outside the box */
+}
+.crop-grid {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0.45;
+  background:
+    linear-gradient(to right, transparent 33.2%, #ECE5D5 33.2%, #ECE5D5 33.5%, transparent 33.5%, transparent 66.5%, #ECE5D5 66.5%, #ECE5D5 66.8%, transparent 66.8%),
+    linear-gradient(to bottom, transparent 33.2%, #ECE5D5 33.2%, #ECE5D5 33.5%, transparent 33.5%, transparent 66.5%, #ECE5D5 66.5%, #ECE5D5 66.8%, transparent 66.8%);
+}
+/* Big invisible touch targets with a small visible corner */
+.crop-handle { position: absolute; width: 44px; height: 44px; z-index: 1; }
+.crop-handle::after { content: ''; position: absolute; width: 18px; height: 18px; border: 3px solid #ECE5D5; }
+.crop-handle.nw { left: -22px; top: -22px; cursor: nwse-resize; } .crop-handle.nw::after { left: 20px; top: 20px; border-right: 0; border-bottom: 0; }
+.crop-handle.ne { right: -22px; top: -22px; cursor: nesw-resize; } .crop-handle.ne::after { right: 20px; top: 20px; border-left: 0; border-bottom: 0; }
+.crop-handle.sw { left: -22px; bottom: -22px; cursor: nesw-resize; } .crop-handle.sw::after { left: 20px; bottom: 20px; border-right: 0; border-top: 0; }
+.crop-handle.se { right: -22px; bottom: -22px; cursor: nwse-resize; } .crop-handle.se::after { right: 20px; bottom: 20px; border-left: 0; border-top: 0; }
+.crop-chips { margin: 0; padding: 4px 16px 12px; }
+.cropper .chip { color: #ECE5D5; border-color: rgba(236,229,213,.3); }
+.cropper .chip.on { background: #ECE5D5; border-color: #ECE5D5; color: #1B1C17; }
+.crop-actions { display: flex; justify-content: space-between; gap: 8px; padding: 0 16px; }
+.cropper .btn.ghost { color: #ECE5D5; border-color: rgba(236,229,213,.4); }
+.cropper .btn:not(.ghost) { background: #ECE5D5; border-color: #ECE5D5; color: #1B1C17; }

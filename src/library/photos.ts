@@ -48,12 +48,31 @@ export interface Photo {
   rafDeleted?: boolean
   /** editedAt of the render the result thumbnail was made from */
   resultThumbAt?: number | null
+  /**
+   * Crop rectangle, in fractions (0…1) of the rendered image: x/y = top-left
+   * corner, w/h = size. null/undefined = not cropped. The camera render itself
+   * is never changed — the crop is applied when showing and exporting.
+   */
+  crop?: Crop | null
+  /** Which render + crop the files thumbs/<id>-r.jpg and results/<id>-c.jpg belong to */
+  thumbKey?: string
+  croppedKey?: string
+}
+
+export interface Crop { x: number; y: number; w: number; h: number }
+
+/** Identifies "this render with this crop" — changes whenever either changes. */
+export function outputKey(p: Photo): string {
+  const c = p.crop
+  return `${p.editedAt}|${c ? [c.x, c.y, c.w, c.h].map(n => n.toFixed(4)).join(',') : ''}`
 }
 
 const rawPath = (id: string) => `raw/${id}.raf`
 const thumbPath = (id: string) => `thumbs/${id}.jpg`
 const resultThumbPath = (id: string) => `thumbs/${id}-r.jpg`
 const resultPath = (id: string) => `results/${id}.jpg`
+/** The render with the crop applied (made on demand) */
+const croppedPath = (id: string) => `results/${id}-c.jpg`
 /** Copy of the embedded preview, kept when the RAF is deleted */
 const keptPreviewPath = (id: string) => `previews/${id}.jpg`
 
@@ -100,7 +119,7 @@ export async function thumbUrl(p: Photo | string): Promise<string | null> {
     p = found
   }
   const useResult = !!p.resultSize && !!p.editedAt
-  const key = useResult ? `${p.id}@${p.editedAt}` : p.id
+  const key = useResult ? `${p.id}@${outputKey(p)}` : p.id
   const cached = thumbUrls.get(key)
   if (cached) return cached
 
@@ -120,21 +139,69 @@ export async function thumbUrl(p: Photo | string): Promise<string | null> {
  */
 let thumbQueue: Promise<unknown> = Promise.resolve()
 async function resultThumb(p: Photo): Promise<File | null> {
-  if (p.resultThumbAt === p.editedAt) return readFile(resultThumbPath(p.id))
+  if (p.thumbKey === outputKey(p)) return readFile(resultThumbPath(p.id))
   const job = thumbQueue.then(async () => {
     const fresh = await getPhoto(p.id)
     if (!fresh?.resultSize) return null
-    if (fresh.resultThumbAt === fresh.editedAt) return readFile(resultThumbPath(p.id))
+    if (fresh.thumbKey === outputKey(fresh)) return readFile(resultThumbPath(p.id))
     const res = await readFile(resultPath(p.id))
     if (!res) return null
-    const thumb = await makeThumbnail(res)
+    const thumb = await makeThumbnail(res, 480, fresh.crop)
     await writeFile(resultThumbPath(p.id), thumb.blob)
-    // Save silently (no notify → no re-render loop of the grid)
-    await dbPut('photos', { ...fresh, resultThumbAt: fresh.editedAt })
+    // Save silently (no notify → no re-render loop of the grid).
+    // Re-read first: another queued job may have updated the record meanwhile.
+    const latest = (await getPhoto(p.id)) ?? fresh
+    await dbPut('photos', { ...latest, thumbKey: outputKey(fresh) })
     return readFile(resultThumbPath(p.id))
   })
   thumbQueue = job.catch(() => null)
   return job
+}
+
+/**
+ * The file to show / save / share for a photo: the camera render, with the
+ * crop applied if there is one. The cropped JPEG is created on demand and
+ * kept until the render or the crop changes.
+ */
+export async function outputFile(p: Photo): Promise<File | null> {
+  if (!p.resultSize) return null
+  if (!p.crop) return readFile(resultPath(p.id))
+  if (p.croppedKey === outputKey(p)) {
+    const f = await readFile(croppedPath(p.id))
+    if (f) return f
+  }
+  const job = thumbQueue.then(async () => {
+    const fresh = await getPhoto(p.id)
+    if (!fresh?.resultSize) return null
+    if (!fresh.crop) return readFile(resultPath(p.id))
+    const res = await readFile(resultPath(p.id))
+    if (!res) return null
+    // Decode the full render, copy only the crop rectangle onto a canvas,
+    // and encode that as a new JPEG (high quality).
+    const bmp = await createImageBitmap(res, { imageOrientation: 'from-image' })
+    const c = fresh.crop
+    const sx = Math.round(c.x * bmp.width), sy = Math.round(c.y * bmp.height)
+    const sw = Math.max(1, Math.round(c.w * bmp.width)), sh = Math.max(1, Math.round(c.h * bmp.height))
+    const canvas = new OffscreenCanvas(sw, sh)
+    canvas.getContext('2d')!.drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh)
+    bmp.close()
+    await writeFile(croppedPath(p.id), await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.95 }))
+    const latest = (await getPhoto(p.id)) ?? fresh
+    await dbPut('photos', { ...latest, croppedKey: outputKey(fresh) })
+    return readFile(croppedPath(p.id))
+  })
+  thumbQueue = job.catch(() => null)
+  return job
+}
+
+/** Set or remove (null) the crop of a photo. */
+export async function setCrop(id: string, crop: Crop | null): Promise<Photo | undefined> {
+  const p = await getPhoto(id)
+  if (!p) return undefined
+  const updated: Photo = { ...p, crop }
+  await dbPut('photos', updated)
+  notify()
+  return updated
 }
 
 /** The embedded preview JPEG (the "original" look straight from the camera). */
@@ -175,19 +242,22 @@ function exifDateToIso(s: string | undefined): string | null {
 }
 
 /** Make a small JPEG thumbnail (longest side `size` px) from an image blob. */
-export async function makeThumbnail(jpeg: Blob, size = 480): Promise<{ blob: Blob; w: number; h: number }> {
+export async function makeThumbnail(jpeg: Blob, size = 480, crop?: Crop | null): Promise<{ blob: Blob; w: number; h: number }> {
   // imageOrientation 'from-image' applies the EXIF rotation (portrait photos!).
   // resizeWidth lets the decoder shrink the image WHILE decoding: a 26 MP
   // camera JPEG never has to exist at full size in memory (much faster, and
   // far less RAM on a phone). 2× the target keeps the final downscale sharp.
   const bmp = await createImageBitmap(jpeg, { imageOrientation: 'from-image', resizeWidth: size * 2, resizeQuality: 'medium' })
-  const scale = Math.min(1, size / Math.max(bmp.width, bmp.height))
-  const w = Math.round(bmp.width * scale)
-  const h = Math.round(bmp.height * scale)
+  // Source rectangle: the whole image, or just the crop
+  const sx = (crop?.x ?? 0) * bmp.width, sy = (crop?.y ?? 0) * bmp.height
+  const sw = (crop?.w ?? 1) * bmp.width, sh = (crop?.h ?? 1) * bmp.height
+  const scale = Math.min(1, size / Math.max(sw, sh))
+  const w = Math.max(1, Math.round(sw * scale))
+  const h = Math.max(1, Math.round(sh * scale))
   const canvas = new OffscreenCanvas(w, h)
   const ctx = canvas.getContext('2d')!
   ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(bmp, 0, 0, w, h)
+  ctx.drawImage(bmp, sx, sy, sw, sh, 0, 0, w, h)
   bmp.close()
   return { blob: await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.82 }), w, h }
 }
@@ -309,7 +379,7 @@ export async function deleteOriginals(ids: string[]): Promise<number> {
 export async function deletePhoto(id: string, quiet = false): Promise<void> {
   await Promise.all([
     deleteFile(rawPath(id)), deleteFile(thumbPath(id)), deleteFile(resultThumbPath(id)),
-    deleteFile(resultPath(id)), deleteFile(keptPreviewPath(id)),
+    deleteFile(resultPath(id)), deleteFile(croppedPath(id)), deleteFile(keptPreviewPath(id)),
   ])
   for (const [key, url] of thumbUrls) {
     if (key === id || key.startsWith(id + '@')) { URL.revokeObjectURL(url); thumbUrls.delete(key) }

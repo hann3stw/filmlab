@@ -21,7 +21,9 @@ import { t } from '../i18n/index.ts'
 import { cameraService, CancelledError } from '../camera/camera-service.ts'
 import type { ConvertStage } from '../camera/ptp/session.ts'
 import { FIELDS, TONE_FIELDS, recipesEqual, summarize, type FieldDef, type Recipe } from '../recipes/recipe.ts'
-import { getPhoto, makeThumbnail, markExported, previewBlob, rafBytes, resultFile, saveResult, type Photo } from '../library/photos.ts'
+import { getPhoto, makeThumbnail, markExported, outputFile, previewBlob, rafBytes, resultFile, saveResult, setCrop, type Crop, type Photo } from '../library/photos.ts'
+import { createZoomImage } from '../ui/zoom-image.ts'
+import { openCropper } from './crop.ts'
 import { cameraPill } from '../app/components.ts'
 import { navigate, type View } from '../app/shell.ts'
 import { log } from '../ui/debug-log.ts'
@@ -42,13 +44,16 @@ export const editorView: View = (root, [photoId]) => {
   let renderAgain = false
 
   // ---- elements ----
-  const img = h('img', { class: 'stage-img', alt: '' })
+  // The image: zoomable (pinch / double-tap) and shown with the photo's crop
+  const zoom = createZoomImage()
+  let currentSrc = ''
   const overlay = h('div', { class: 'stage-overlay', hidden: true }, h('div', { class: 'spinner' }), h('span', { class: 'label' }))
   const overlayText = overlay.querySelector('span')!
   const tag = h('span', { class: 'stage-tag label' })
   const compareBtn = h('button', { class: 'icon-btn on-image', 'aria-label': t('ed.compare'), html: icons.compare })
   const fullBtn = h('button', { class: 'icon-btn on-image', 'aria-label': t('ed.fullscreen'), html: icons.expand })
-  const stage = h('div', { class: 'stage' }, img, overlay, tag, h('div', { class: 'stage-tools' }, compareBtn, fullBtn))
+  const cropBtn = h('button', { class: 'icon-btn on-image', 'aria-label': t('crop.title'), html: icons.crop })
+  const stage = h('div', { class: 'stage' }, zoom.el, overlay, tag, h('div', { class: 'stage-tools' }, cropBtn, compareBtn, fullBtn))
   const statusLine = h('div', { class: 'ed-status label' })
   const summaryLine = h('div', { class: 'ed-summary label' })
   const grid = h('div', { class: 'tiles' })
@@ -155,7 +160,8 @@ export const editorView: View = (root, [photoId]) => {
       const secs = ((performance.now() - t0) / 1000).toFixed(1)
       log(`Rendered ${p.fileName} in ${secs} s (${(jpeg.length / 1024 / 1024).toFixed(1)} MB)`, 'ok')
       const maxDR = cameraService.shotDynamicRange ?? p.maxDR
-      photo = await saveResult({ ...p, maxDR }, jpeg, snapshot)
+      // Use the LATEST record (the crop may have been changed while the camera worked)
+      photo = await saveResult({ ...((await getPhoto(p.id)) ?? p), maxDR }, jpeg, snapshot)
       if (disposed) return
       if (resultUrl) URL.revokeObjectURL(resultUrl)
       resultUrl = URL.createObjectURL(new Blob([jpeg as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' }))
@@ -185,7 +191,9 @@ export const editorView: View = (root, [photoId]) => {
   function showImage() {
     const useOriginal = showOriginal || !resultUrl
     const src = useOriginal ? originalUrl : resultUrl
-    if (src && img.src !== src) img.src = src
+    if (src) { currentSrc = src; zoom.setSource(src) }
+    zoom.setCrop(photo?.crop)
+    cropBtn.classList.toggle('active', !!photo?.crop)
     tag.textContent = useOriginal ? t('ed.original') : t('ed.result')
     compareBtn.classList.toggle('active', showOriginal)
     compareBtn.hidden = !resultUrl
@@ -193,7 +201,17 @@ export const editorView: View = (root, [photoId]) => {
 
   compareBtn.addEventListener('click', () => { showOriginal = !showOriginal; showImage() })
 
-  fullBtn.addEventListener('click', () => openFullscreen(img.src))
+  fullBtn.addEventListener('click', () => openFullscreen(currentSrc, photo?.crop))
+
+  // Crop: opens the crop screen on the image that is showing right now.
+  cropBtn.addEventListener('click', async () => {
+    if (!photo || !currentSrc) return
+    const next = await openCropper(currentSrc, photo.crop)
+    if (next === undefined) return // cancelled
+    photo = (await setCrop(photo.id, next)) ?? photo
+    zoom.resetZoom()
+    showImage()
+  })
 
   // ======================================================================
   // Status line under the image
@@ -276,7 +294,7 @@ export const editorView: View = (root, [photoId]) => {
     const name = await promptSheet(t('ed.saveRecipe'), t('rec.name'), t('common.save'), t('common.cancel'))
     if (!name) return
     let thumb: Blob | null = null
-    const res = !isDirty() ? await resultFile(photo.id) : null
+    const res = !isDirty() ? await outputFile(photo) : null
     if (res) thumb = (await makeThumbnail(res, 640)).blob
     await createRecipe(name, recipe, 'mine', thumb, photo.id)
     toast(t('ed.recipeSaved', { name }))
@@ -365,7 +383,7 @@ export const editorView: View = (root, [photoId]) => {
   async function resultAsFile(): Promise<File | null> {
     if (!photo) return null
     if (isDirty()) toast(t('ed.notRenderedYet'))
-    const f = await resultFile(photo.id)
+    const f = await outputFile(photo)
     return f ? new File([f], exportName(), { type: 'image/jpeg' }) : null
   }
 
@@ -410,6 +428,7 @@ export const editorView: View = (root, [photoId]) => {
     debouncedRender.cancel()
     offCam()
     pill.dispose()
+    zoom.destroy()
     if (originalUrl) URL.revokeObjectURL(originalUrl)
     if (resultUrl) URL.revokeObjectURL(resultUrl)
   }
@@ -422,16 +441,21 @@ function formatDate(iso: string | null): string {
   return isNaN(d.getTime()) ? '' : d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-/** Full-screen image view. Tap or Android "back" closes it. */
-function openFullscreen(src: string) {
+/** Full-screen image view with zoom. The X button or Android "back" closes it. */
+function openFullscreen(src: string, crop?: Crop | null) {
   if (!src) return
-  const view = h('div', { class: 'fullscreen' }, h('img', { src, alt: '' }))
+  const zoom = createZoomImage()
+  zoom.setSource(src)
+  zoom.setCrop(crop)
+  const closeBtn = h('button', { class: 'icon-btn dark fs-close', 'aria-label': t('ed.back'), html: icons.close })
+  const view = h('div', { class: 'fullscreen' }, zoom.el, closeBtn)
   const hide = () => {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+    zoom.destroy()
     view.remove()
   }
   const release = pushBack(hide)
-  view.addEventListener('click', () => { void release(); hide() })
+  closeBtn.addEventListener('click', () => { void release(); hide() })
   document.body.append(view)
   void view.requestFullscreen?.().catch(() => {})
 }

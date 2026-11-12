@@ -16,7 +16,7 @@ import { icons } from '../ui/icons.ts'
 import { t } from '../i18n/index.ts'
 import { FIELDS, summarize } from '../recipes/recipe.ts'
 import {
-  deletePhoto, exportName, getPhoto, markExported, previewBlob, resultFile, thumbUrl, updatePhoto, type Photo,
+  deletePhoto, exportName, getPhoto, markExported, previewBlob, outputFile, thumbUrl, updatePhoto, type Photo,
 } from '../library/photos.ts'
 import { formatBytes } from '../ui/dom.ts'
 import { saveFiles, shareFiles } from '../library/export.ts'
@@ -76,7 +76,7 @@ export function openViewer(list: Photo[], startIndex: number, opts: ViewerOption
   // ---- image URLs: full image for the current photo, thumbnails for neighbours ----
   const ownedUrls = new Set<string>()
   async function fullUrl(p: Photo): Promise<string | null> {
-    const blob = !showOriginal && p.resultSize ? await resultFile(p.id) : await previewBlob(p)
+    const blob = !showOriginal && p.resultSize ? await outputFile(p) : await previewBlob(p)
     if (!blob) return thumbUrl(p)
     const url = URL.createObjectURL(blob)
     ownedUrls.add(url)
@@ -279,7 +279,7 @@ export function openViewer(list: Photo[], startIndex: number, opts: ViewerOption
 
   async function currentFile(): Promise<File | null> {
     const p = photos[index]
-    const f = p.resultSize ? await resultFile(p.id) : null
+    const f = await outputFile(p)
     if (!f) { toast(t('view.noRender')); return null }
     return new File([f], exportName(p), { type: 'image/jpeg' })
   }

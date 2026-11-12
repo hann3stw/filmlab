@@ -286,4 +286,8 @@ export const de: Record<keyof typeof en, string> = {
   'rec.importText': "Aus Text importieren",
   'rec.importTextNote': "Füge ein Rezept ein, das dir als Text geschickt wurde.",
   'rec.importDo': "Importieren",
+  'crop.title': "Zuschneiden",
+  'crop.free': "Frei",
+  'crop.original': "Original",
+  'crop.reset': "Zurücksetzen",
 }

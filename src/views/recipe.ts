@@ -17,7 +17,7 @@ import { drawRecipeForm } from '../app/recipe-form.ts'
 import { runBatch } from '../app/batch-ui.ts'
 import { loadRecipeOntoCamera } from './slots.ts'
 import { renderRecipeCard } from '../recipes/card.ts'
-import { listPhotos, resultFile, thumbUrl, type Photo } from '../library/photos.ts'
+import { listPhotos, outputFile, thumbUrl, type Photo } from '../library/photos.ts'
 import { shareOrSave, exportJson } from '../library/export.ts'
 
 export const recipeView: View = (root, [id]) => {
@@ -146,7 +146,7 @@ async function exportCard(rec: SavedRecipe) {
   const linked = photos.find(p => p.id === rec.photoId && p.resultSize && p.recipe && recipesEqual(p.recipe, rec.recipe))
     ?? photos.find(p => p.resultSize && p.recipe && recipesEqual(p.recipe, rec.recipe))
     ?? photos.find(p => p.id === rec.photoId && p.resultSize)
-  if (linked) photo = await resultFile(linked.id)
+  if (linked) photo = await outputFile(linked)
   const blob = await renderRecipeCard(rec.name, rec.recipe, photo)
   const file = new File([blob], `${rec.name.replace(/[^\w-]+/g, '_')}_recipe.jpg`, { type: 'image/jpeg' })
   await shareOrSave(file)

@@ -284,4 +284,8 @@ export const en = {
   'rec.importText': "Import from text",
   'rec.importTextNote': "Paste a recipe that was shared with you as text.",
   'rec.importDo': "Import",
+  'crop.title': "Crop",
+  'crop.free': "Free",
+  'crop.original': "Original",
+  'crop.reset': "Reset",
 }
