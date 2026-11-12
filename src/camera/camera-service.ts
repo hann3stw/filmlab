@@ -126,6 +126,20 @@ export class CameraService {
     this.setStatus('connected')
   }
 
+  /**
+   * Dynamic range the loaded photo was SHOT with (100/200/400), read from the
+   * camera's base profile. A RAW can only be developed with this DR or lower —
+   * asking for more gave a green image in testing.
+   */
+  get shotDynamicRange(): number | null {
+    const p = this.camera?.baseProfile
+    if (!p) return null
+    const dv = new DataView(p.buffer, p.byteOffset, p.byteLength)
+    const off = p.length - dv.getUint16(0, true) * 4
+    const dr = dv.getInt32(off + 6 * 4, true)
+    return dr === 100 || dr === 200 || dr === 400 ? dr : null
+  }
+
   async disconnect(): Promise<void> {
     if (!this.camera) return
     await this.camera.disconnect()

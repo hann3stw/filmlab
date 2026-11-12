@@ -50,13 +50,19 @@ export interface ConversionParams {
  * Encoding matches preset properties: 1-indexed effects, flat grain enum, raw DR%.
  */
 const NativeIdx = {
-  ExposureBias:      4,
+  // FilmLab: X-T30 III test (2026-11) showed index 4 is IMAGE QUALITY (writing
+  // 1000 there halved the JPEG size without changing brightness). The layout is
+  // rawji's table shifted by one, so exposure is index 5.
+  ImageSize:         3,
+  ImageQuality:      4,
+  ExposureBias:      5,
   DynamicRange:      6,   // raw percentage: 100/200/400
   WideDRange:        7,
   FilmSimulation:    8,
   GrainEffect:       9,   // flat enum: 1=Off 2=WkSm 3=StrSm 4=WkLg 5=StrLg
   ColorChrome:      10,   // 1-indexed: 1=Off 2=Weak 3=Strong
   SmoothSkin:       11,   // 1-indexed
+  WBShootCond:      11,   // FilmLab: 1 = "WB as shot" (rawji's WBShootCond, shifted by one)
   WhiteBalance:     12,   // 0 = use EXIF (sentinel)
   WBShiftR:         13,
   WBShiftB:         14,
@@ -114,7 +120,13 @@ export function patchProfile(
   if (changes.colorChromeFxBlue !== undefined) set(NativeIdx.CCFxBlue, changes.colorChromeFxBlue + 1)
   if (changes.smoothSkinEffect !== undefined)  set(NativeIdx.SmoothSkin, changes.smoothSkinEffect + 1)
 
-  if (changes.whiteBalance !== undefined)   set(NativeIdx.WhiteBalance, changes.whiteBalance)
+  if (changes.whiteBalance !== undefined) {
+    set(NativeIdx.WhiteBalance, changes.whiteBalance)
+    // FilmLab: on the X-T30 III a WB mode alone was ignored while the
+    // "shooting condition" flag stayed 1 (= keep the WB the photo was shot
+    // with). rawji always sends 0 here when it overrides WB, so we do too.
+    set(NativeIdx.WBShootCond, 0)
+  }
   if (changes.wbShiftR !== undefined)       set(NativeIdx.WBShiftR, changes.wbShiftR)
   if (changes.wbShiftB !== undefined)       set(NativeIdx.WBShiftB, changes.wbShiftB)
   if (changes.wbColorTemp !== undefined)    set(NativeIdx.WBColorTemp, changes.wbColorTemp)

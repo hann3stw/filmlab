@@ -51,8 +51,8 @@ export const editorView: View = (root, [photoId]) => {
   const grid = h('div', { class: 'tiles' })
   const undoBtn = h('button', { class: 'icon-btn', 'aria-label': t('ed.undo'), html: icons.undo, disabled: true })
   const pill = cameraPill(() => navigate('camera'))
-  const shareBtn = h('button', { class: 'btn' }, h('span', { html: icons.share }), t('ed.save'))
-  const downloadBtn = h('button', { class: 'btn ghost', 'aria-label': t('ed.download') }, h('span', { html: icons.download }))
+  const downloadBtn = h('button', { class: 'btn' }, h('span', { html: icons.download }), t('ed.save'))
+  const shareBtn = h('button', { class: 'btn ghost', 'aria-label': t('ed.share') }, h('span', { html: icons.share }))
   const resetBtn = h('button', { class: 'btn ghost' }, t('ed.reset'))
   const title = h('div', { class: 'ed-title' })
 
@@ -67,7 +67,7 @@ export const editorView: View = (root, [photoId]) => {
         h('div', { class: 'ed-left' }, stage, h('div', { class: 'ed-meta' }, statusLine, pill), summaryLine),
         h('div', { class: 'ed-right' },
           grid,
-          h('div', { class: 'ed-actions' }, shareBtn, downloadBtn, resetBtn),
+          h('div', { class: 'ed-actions' }, downloadBtn, shareBtn, resetBtn),
         ),
       ),
     ),
@@ -148,7 +148,8 @@ export const editorView: View = (root, [photoId]) => {
       })
       const secs = ((performance.now() - t0) / 1000).toFixed(1)
       log(`Rendered ${p.fileName} in ${secs} s (${(jpeg.length / 1024 / 1024).toFixed(1)} MB)`, 'ok')
-      photo = await saveResult(p, jpeg, snapshot)
+      const maxDR = cameraService.shotDynamicRange ?? p.maxDR
+      photo = await saveResult({ ...p, maxDR }, jpeg, snapshot)
       if (disposed) return
       if (resultUrl) URL.revokeObjectURL(resultUrl)
       resultUrl = URL.createObjectURL(new Blob([jpeg as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' }))
@@ -156,6 +157,7 @@ export const editorView: View = (root, [photoId]) => {
       lastRenderSecs = secs
       showOriginal = false
       showImage()
+      drawTiles()
     } catch (err) {
       if (!(err instanceof CancelledError)) {
         log(`Render failed: ${err}`, 'error')
@@ -261,6 +263,13 @@ export const editorView: View = (root, [photoId]) => {
   })
 
   /** Open the bottom sheet for one setting. */
+  /** Options of a field, minus those this particular photo can't use. */
+  function optionsFor(f: FieldDef) {
+    const opts = f.options()
+    if (f.key !== 'dynamicRange' || !photo?.maxDR) return opts
+    return opts.filter(o => typeof o.value !== 'number' || o.value <= photo!.maxDR!)
+  }
+
   function openPicker(f: FieldDef) {
     let firstChange = true
     const change = (value: unknown) => {
@@ -283,7 +292,7 @@ export const editorView: View = (root, [photoId]) => {
     // Long lists (film simulations, white balance): one big row per value.
     const listBody = () => [
       lockNote(),
-      h('div', { class: 'opt-list' }, ...f.options().map(o =>
+      h('div', { class: 'opt-list' }, ...optionsFor(f).map(o =>
         h('button', {
           class: `opt${o.value === recipe[f.key] ? ' on' : ''}`,
           onclick: () => { change(o.value); sheet.close() },
@@ -293,7 +302,7 @@ export const editorView: View = (root, [photoId]) => {
 
     // Numbers: big value, − / + buttons and a slider. Stays open for fine-tuning.
     const numericBody = () => {
-      const opts = f.options()
+      const opts = optionsFor(f)
       const idx = Math.max(0, opts.findIndex(o => o.value === recipe[f.key]))
       const slider = h('input', { type: 'range', min: 0, max: opts.length - 1, step: 1, value: idx, class: 'slider', 'aria-label': t(f.label) }) as HTMLInputElement
       slider.addEventListener('input', () => change(opts[Number(slider.value)].value))
@@ -342,7 +351,7 @@ export const editorView: View = (root, [photoId]) => {
         log(`Share failed: ${err}`, 'warn')
       }
     }
-    download(file)
+    toast(t('ed.shareUnavailable'))
   })
 
   downloadBtn.addEventListener('click', async () => {

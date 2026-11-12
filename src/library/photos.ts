@@ -34,6 +34,8 @@ export interface Photo {
   favorite: boolean
   albums: string[]
   /** Pixel size of the thumbnail (for layout without waiting for the image) */
+  /** Highest dynamic range this RAW can be developed with (known after first render) */
+  maxDR?: number
   thumbW: number
   thumbH: number
 }
