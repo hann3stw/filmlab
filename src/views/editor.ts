@@ -19,10 +19,11 @@ import { t } from '../i18n/index.ts'
 import { cameraService, CancelledError } from '../camera/camera-service.ts'
 import type { ConvertStage } from '../camera/ptp/session.ts'
 import { FIELDS, TONE_FIELDS, recipesEqual, summarize, type FieldDef, type Recipe } from '../recipes/recipe.ts'
-import { getPhoto, previewBlob, rafBytes, resultFile, saveResult, type Photo } from '../library/photos.ts'
+import { getPhoto, markExported, previewBlob, rafBytes, resultFile, saveResult, type Photo } from '../library/photos.ts'
 import { cameraPill } from '../app/components.ts'
 import { navigate, type View } from '../app/shell.ts'
 import { log } from '../ui/debug-log.ts'
+import { pushBack } from '../ui/back-stack.ts'
 
 const RENDER_DEBOUNCE_MS = 700
 
@@ -131,7 +132,7 @@ export const editorView: View = (root, [photoId]) => {
   }
 
   async function render() {
-    if (disposed || !photo || !cameraService.isReady || !isDirty()) { updateStatus(); return }
+    if (disposed || !photo || photo.rafDeleted || !cameraService.isReady || !isDirty()) { updateStatus(); return }
     if (rendering) { renderAgain = true; return } // camera busy: run again when done
     rendering = true
     const p = photo
@@ -198,7 +199,8 @@ export const editorView: View = (root, [photoId]) => {
     undoBtn.disabled = undoStack.length === 0
     summaryLine.textContent = summarize(recipe)
     let text: string
-    if (rendering) text = t('ed.st.rendering')
+    if (photo.rafDeleted) text = t('ed.st.rawDeleted')
+    else if (rendering) text = t('ed.st.rendering')
     else if (!cameraService.isReady && isDirty()) text = t('ed.st.needCamera')
     else if (isDirty()) text = t('ed.st.pending')
     else text = lastRenderSecs ? t('ed.st.renderedIn', { s: lastRenderSecs }) : t('ed.st.upToDate')
@@ -345,6 +347,7 @@ export const editorView: View = (root, [photoId]) => {
     if (navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: exportName() })
+        if (photo) await markExported([photo.id])
         return
       } catch (err) {
         if ((err as DOMException).name === 'AbortError') return
@@ -356,7 +359,7 @@ export const editorView: View = (root, [photoId]) => {
 
   downloadBtn.addEventListener('click', async () => {
     const file = await resultAsFile()
-    if (file) download(file)
+    if (file) { download(file); if (photo) await markExported([photo.id]) }
   })
 
   function download(file: File) {
@@ -394,14 +397,12 @@ function formatDate(iso: string | null): string {
 function openFullscreen(src: string) {
   if (!src) return
   const view = h('div', { class: 'fullscreen' }, h('img', { src, alt: '' }))
-  const close = () => {
-    window.removeEventListener('popstate', close)
+  const hide = () => {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
     view.remove()
   }
-  history.pushState({ fullscreen: true }, '')
-  window.addEventListener('popstate', close)
-  view.addEventListener('click', () => history.back())
+  const release = pushBack(hide)
+  view.addEventListener('click', () => { void release(); hide() })
   document.body.append(view)
   void view.requestFullscreen?.().catch(() => {})
 }

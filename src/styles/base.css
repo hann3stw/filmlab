@@ -33,7 +33,37 @@
   --touch: 48px;            /* minimum touch target (Android guideline) */
   --gutter: 16px;
 
+  --stage:       #E3D9C4;  /* background behind photos in the editor */
+  --warn-bg:     #F1DED3;
+
   color-scheme: light;
+}
+
+/*
+ * DARK THEME — same variable names, different values. theme.ts sets
+ * <html data-theme="dark">, and every rule that uses var(--…) follows.
+ * Dark olive would be invisible on a dark background, so the accent becomes
+ * a lighter, muted olive and button text turns dark.
+ */
+:root[data-theme="dark"] {
+  --paper:       #1B1C17;
+  --paper-2:     #24251F;
+  --paper-3:     #30322A;
+  --ink:         #ECE5D5;
+  --ink-soft:    #A9A391;
+  --ink-faint:   #726D5F;
+  --line:        rgba(236, 229, 213, 0.14);
+
+  --olive:       #A3B373;
+  --olive-2:     #B7C68A;
+  --on-olive:    #1B1C17;
+  --brass:       #C9A96A;
+  --danger:      #DE7B66;
+  --ok:          #93B56C;
+  --stage:       #111210;
+  --warn-bg:     #3A2420;
+
+  color-scheme: dark;
 }
 
 *, *::before, *::after { box-sizing: border-box; }

@@ -1,7 +1,7 @@
 {
   "name": "filmlab",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "FilmLab — Fujifilm in-camera RAW conversion & recipes as a PWA (WebUSB).",
   "type": "module",
   "scripts": {

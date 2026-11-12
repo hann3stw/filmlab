@@ -23,5 +23,11 @@ export const icons = {
   info: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.4"/>'),
   minus: svg('<path d="M5 12h14"/>'),
   check: svg('<path d="M5 12.5 10 17.5 19 7"/>'),
+  heart: svg('<path d="M12 19.5s-7.5-4.4-7.5-10A4.2 4.2 0 0 1 12 7a4.2 4.2 0 0 1 7.5 2.5c0 5.6-7.5 10-7.5 10z"/>'),
+  heartFilled: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 19.5s-7.5-4.4-7.5-10A4.2 4.2 0 0 1 12 7a4.2 4.2 0 0 1 7.5 2.5c0 5.6-7.5 10-7.5 10z"/></svg>',
+  filter: svg('<path d="M4 6.5h16M7 12h10M10 17.5h4"/>'),
+  album: svg('<rect x="4" y="6.5" width="16" height="13" rx="1.5"/><path d="M7 4h10"/><path d="m7 16 3.5-4 3 3 2-2 2.5 3"/>'),
+  wand: svg('<path d="m4 20 11-11"/><path d="m13 7 2-2 2 2-2 2z"/><path d="M18 3v2M20 6h-2M19 10v1.5M8 4v1.5"/>'),
+  more: svg('<circle cx="6" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="18" cy="12" r="1"/>'),
   trash: svg('<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/>'),
 }

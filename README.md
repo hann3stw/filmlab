@@ -5,7 +5,7 @@ Chrome on Android. RAW files are converted **inside the camera** over WebUSB —
 the same principle as Fujifilm X RAW Studio — and film recipes can be managed
 and loaded onto the camera's custom slots.
 
-**Status: Phase 1 — core (connect, import, in-camera editor).**
+**Status: Phase 2 — library (grid, filters, albums, viewer, multi-select, dark mode).**
 
 ## Project structure
 

@@ -16,8 +16,10 @@ import { libraryView } from './views/library.ts'
 import { recipesView } from './views/recipes.ts'
 import { cameraView } from './views/camera.ts'
 import { editorView } from './views/editor.ts'
+import { initTheme } from './app/theme.ts'
 import { registerServiceWorker } from './app/sw-register.ts'
 
+initTheme()
 installGlobalErrorHandlers()
 log(`FilmLab ${__APP_VERSION__} starting · WebUSB ${'usb' in navigator ? 'yes' : 'NO'}`)
 

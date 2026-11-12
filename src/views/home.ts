@@ -5,7 +5,7 @@
 
 import { h } from '../ui/dom.ts'
 import { t } from '../i18n/index.ts'
-import { cameraPill, header, importButton, langSwitch, thumb } from '../app/components.ts'
+import { cameraPill, header, importButton, langSwitch, themeSwitch, thumb } from '../app/components.ts'
 import { listPhotos, onPhotosChanged } from '../library/photos.ts'
 import { navigate, type View } from '../app/shell.ts'
 
@@ -30,6 +30,10 @@ export const homeView: View = root => {
     h('section', { class: 'section' },
       h('div', { class: 'section-head' }, h('h2', null, t('home.popular'))),
       h('p', { class: 'muted' }, t('home.popularSoon')),
+    ),
+    h('section', { class: 'section' },
+      h('div', { class: 'section-head' }, h('h2', null, t('home.appearance'))),
+      themeSwitch(),
     ),
   )
 

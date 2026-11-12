@@ -6,6 +6,8 @@
  * creates <button class="btn">Text</button> with a click handler.
  */
 
+import { pushBack } from './back-stack.ts'
+
 type Child = Node | string | number | null | undefined | false
 type Attrs = Record<string, unknown>
 
@@ -108,24 +110,21 @@ export function openSheet(title: string, onClose?: () => void): Sheet {
   )
   const backdrop = h('div', { class: 'sheet-backdrop' }, panel)
   let closed = false
-  const close = () => {
+  const hide = () => {
     if (closed) return
     closed = true
     backdrop.classList.remove('open')
-    window.removeEventListener('popstate', onPop)
     setTimeout(() => backdrop.remove(), 220)
     onClose?.()
   }
-  // Android "back" gesture should close the sheet, not leave the screen:
-  // we push a dummy history entry and close on popstate.
-  const onPop = () => close()
-  history.pushState({ sheet: true }, '')
-  window.addEventListener('popstate', onPop)
+  // Android "back" closes the sheet (see back-stack.ts)
+  const release = pushBack(hide)
+  const close = () => { if (!closed) { void release(); hide() } }
 
-  backdrop.addEventListener('click', e => { if (e.target === backdrop) history.back() })
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) close() })
   document.body.append(backdrop)
   requestAnimationFrame(() => backdrop.classList.add('open'))
-  return { el: panel, body, close: () => { if (!closed) history.back() } }
+  return { el: panel, body, close }
 }
 
 /** Simple yes/no confirmation in a sheet. Resolves true if confirmed. */
@@ -140,5 +139,24 @@ export function confirmSheet(title: string, text: string, okLabel: string, cance
         h('button', { class: `btn${danger ? ' danger' : ''}`, onclick: () => { result = true; s.close() } }, okLabel),
       ),
     )
+  })
+}
+
+/** Ask for a short text (e.g. an album name). Resolves null if cancelled. */
+export function promptSheet(title: string, placeholder: string, okLabel: string, cancelLabel: string, initial = ''): Promise<string | null> {
+  return new Promise(resolve => {
+    let result: string | null = null
+    const s = openSheet(title, () => resolve(result))
+    const input = h('input', { class: 'text-input', type: 'text', placeholder, value: initial, maxlength: 60 }) as HTMLInputElement
+    const ok = () => { const v = input.value.trim(); if (v) { result = v; s.close() } }
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') ok() })
+    s.body.append(
+      input,
+      h('div', { class: 'row end' },
+        h('button', { class: 'btn ghost', onclick: () => s.close() }, cancelLabel),
+        h('button', { class: 'btn', onclick: ok }, okLabel),
+      ),
+    )
+    setTimeout(() => input.focus(), 250)
   })
 }

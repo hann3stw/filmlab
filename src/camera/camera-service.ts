@@ -181,6 +181,12 @@ export class CameraService {
       }
       await this.upload.promise
     }
+    // A RAW can't be developed with MORE dynamic range than it was shot with
+    // (the camera returns a green image). Clamp to what the photo allows.
+    const shotDR = this.shotDynamicRange
+    if (shotDR && typeof recipe.dynamicRange === 'number' && recipe.dynamicRange > shotDR) {
+      recipe = { ...recipe, dynamicRange: shotDR as 100 | 200 | 400 }
+    }
     const params = toConversionParams(recipe, asShot)
     log(`Render: ${JSON.stringify(params)}`)
     return cam.reconvert(base => patchProfile(base, params), hooks)
