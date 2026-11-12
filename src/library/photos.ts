@@ -176,8 +176,11 @@ function exifDateToIso(s: string | undefined): string | null {
 
 /** Make a small JPEG thumbnail (longest side `size` px) from an image blob. */
 export async function makeThumbnail(jpeg: Blob, size = 480): Promise<{ blob: Blob; w: number; h: number }> {
-  // imageOrientation 'from-image' applies the EXIF rotation (portrait photos!)
-  const bmp = await createImageBitmap(jpeg, { imageOrientation: 'from-image' })
+  // imageOrientation 'from-image' applies the EXIF rotation (portrait photos!).
+  // resizeWidth lets the decoder shrink the image WHILE decoding: a 26 MP
+  // camera JPEG never has to exist at full size in memory (much faster, and
+  // far less RAM on a phone). 2× the target keeps the final downscale sharp.
+  const bmp = await createImageBitmap(jpeg, { imageOrientation: 'from-image', resizeWidth: size * 2, resizeQuality: 'medium' })
   const scale = Math.min(1, size / Math.max(bmp.width, bmp.height))
   const w = Math.round(bmp.width * scale)
   const h = Math.round(bmp.height * scale)

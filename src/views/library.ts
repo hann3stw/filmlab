@@ -349,7 +349,7 @@ export const libraryView: View = root => {
   }
 
   async function drawStorage() {
-    const [u, est] = await Promise.all([libraryUsage(), storageEstimate()])
+    const [u, est, persisted] = await Promise.all([libraryUsage(), storageEstimate(), navigator.storage.persisted().catch(() => false)])
     const pct = est.quota ? Math.min(100, (est.usage / est.quota) * 100) : 0
     setKids(storage,
       h('div', { class: 'section-head' }, h('h2', null, t('lib.storage')), h('span', { class: 'label' }, formatBytes(est.usage))),
@@ -357,6 +357,7 @@ export const libraryView: View = root => {
       h('p', { class: 'muted small' }, t('lib.storageDetail', {
         raw: formatBytes(u.raw), rawN: u.rawCount, jpg: formatBytes(u.results), jpgN: u.resultCount, quota: formatBytes(est.quota),
       })),
+      h('p', { class: 'muted small' }, t(persisted ? 'lib.persisted' : 'lib.notPersisted')),
       u.exportedRawIds.length
         ? h('button', { class: 'btn ghost small', onclick: async () => {
           const ok = await confirmSheet(t('lib.freeTitle'), t('lib.freeText', { n: u.exportedRawIds.length, size: formatBytes(u.exportedRaw) }),

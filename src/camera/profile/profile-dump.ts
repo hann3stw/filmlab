@@ -15,8 +15,9 @@ import { parsePTPStringRaw } from '../util/binary.ts'
 
 /** FilmKit's NativeIdx (see d185.ts), index → name */
 const FILMKIT_NAMES: Record<number, string> = {
-  4: 'ExposureBias', 6: 'DynamicRange%', 7: 'WideDRange', 8: 'FilmSimulation', 9: 'Grain',
-  10: 'ColorChrome', 11: 'SmoothSkin', 12: 'WhiteBalance', 13: 'WBShiftR', 14: 'WBShiftB',
+  // FilmLab: corrected for the X-T30 III (tests 2026-11): 3/4/5/11 below
+  3: 'ImageSize', 4: 'ImageQuality', 5: 'ExposureBias', 11: 'WBShootCond(1=as shot)', 6: 'DynamicRange%', 7: 'WideDRange', 8: 'FilmSimulation', 9: 'Grain',
+  10: 'ColorChrome', 12: 'WhiteBalance', 13: 'WBShiftR', 14: 'WBShiftB',
   15: 'WBColorTemp', 16: 'Highlight×10', 17: 'Shadow×10', 18: 'Color×10', 19: 'Sharpness×10',
   20: 'NoiseReduction', 25: 'CCFxBlue', 27: 'Clarity×10',
 }

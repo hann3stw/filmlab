@@ -51,3 +51,34 @@ write the name, write each setting in the order X RAW Studio uses, read back to 
 Encodings differ between slots and the D185 profile (effects 1/2/3 vs 0/1/2,
 grain as one enum, DR as 100/200/400, High-ISO NR uses its own table).
 Code: `src/camera/profile/preset-translate.ts`.
+
+## What we learned on the X-T30 III (firmware 1.10)
+
+Found by testing on the real camera — these differ from FilmKit (X100VI) or
+are not documented anywhere:
+
+- **Start conversion:** `0xD183 = 1` renders full resolution (6240×4160),
+  `0` only a 3120×2080 preview.
+- **Profile:** 629 bytes, 30 int32 fields at offset 509. Field order is
+  FilmKit's, with these corrections:
+
+  | Index | Meaning |
+  |---|---|
+  | 3 | image size (7 = L 3:2) |
+  | 4 | image quality — NOT exposure |
+  | 5 | exposure in 1/1000 EV (+1 EV = 1000, +2/3 EV = 667) |
+  | 6 | dynamic range 100/200/400 — never more than the RAW was shot with (else the image turns green) |
+  | 7 | D-Range Priority (0 off, 1 auto, 2 weak, 3 strong); while on, highlight/shadow are ignored |
+  | 8 | film simulation |
+  | 11 | "white balance as shot" flag — must be set to 0, otherwise index 12 is ignored |
+  | 12–15 | WB mode, red shift, blue shift, color temperature |
+  | 16–20 | highlight ×10, shadow ×10, color ×10, sharpness ×10, noise reduction (own code table) |
+  | 25, 27 | Color Chrome FX Blue, clarity ×10 |
+
+- **`GetDevicePropDesc` answers GeneralError** for every property, so allowed
+  values and the slot count cannot be read; FilmLab uses a fixed table
+  (`src/recipes/recipe.ts`) and assumes 7 slots.
+- **Slots:** WB `0x8020` = Auto White Priority, dynamic range `0xFFFF` = Auto,
+  highlight/shadow in 0.5 steps (×10 encoding: +2.5 → 25).
+- **Speed:** 54 MB RAF upload ≈ 0.5 s, conversion ≈ 0.4 s, polling for the
+  result every 250 ms works fine (FilmKit: 1 s).

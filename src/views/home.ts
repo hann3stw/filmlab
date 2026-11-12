@@ -10,6 +10,7 @@ import { filmSimName } from '../recipes/recipe.ts'
 import { cameraPill, header, importButton, langSwitch, themeSwitch, thumb } from '../app/components.ts'
 import { listPhotos, onPhotosChanged } from '../library/photos.ts'
 import { navigate, type View } from '../app/shell.ts'
+import { installSection } from '../app/install.ts'
 
 export const homeView: View = root => {
   const pill = cameraPill(() => navigate('camera'))
@@ -43,6 +44,8 @@ export const homeView: View = root => {
       themeSwitch(),
     ),
   )
+  const install = installSection()
+  if (install) root.append(install)
 
   async function refresh() {
     const photos = (await listPhotos()).slice(0, 9)
@@ -51,5 +54,5 @@ export const homeView: View = root => {
   }
   void refresh()
   const off = onPhotosChanged(refresh)
-  return () => { off(); pill.dispose() }
+  return () => { off(); pill.dispose(); install?.dispose() }
 }

@@ -18,6 +18,7 @@ import { cameraView } from './views/camera.ts'
 import { editorView } from './views/editor.ts'
 import { recipeView, recipeSources } from './views/recipe.ts'
 import { addRecipeSource } from './app/recipe-picker.ts'
+import './app/install.ts' // start listening for the install prompt early
 import { initTheme } from './app/theme.ts'
 import { registerServiceWorker } from './app/sw-register.ts'
 

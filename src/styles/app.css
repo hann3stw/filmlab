@@ -499,3 +499,5 @@ body.viewer-open { overflow: hidden; }
 .old { color: var(--ink-faint); text-decoration: line-through; }
 .diff { width: 100%; border-collapse: collapse; font-size: 14px; }
 .diff td { padding: 7px 6px 7px 0; border-bottom: 1px solid var(--line); }
+
+.text-input.area { min-height: 160px; padding: 12px 14px; font-family: var(--font-mono); font-size: 12px; resize: vertical; }

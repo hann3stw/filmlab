@@ -65,11 +65,32 @@ export const recipesView: View = root => {
     const sheet = openSheet(t('nav.recipes'))
     sheet.body.append(h('div', { class: 'opt-list' },
       h('button', { class: 'opt', onclick: () => { sheet.close(); fileInput.click() } }, t('rec.importJson')),
+      h('button', { class: 'opt', onclick: () => { sheet.close(); pasteSheet() } }, t('rec.importText')),
       h('button', { class: 'opt', disabled: !all.length, onclick: async () => {
         sheet.close()
         await exportJson('filmlab-recipes.json', recipesToJson(all))
       } }, t('rec.exportAll', { n: all.length })),
     ))
+  }
+
+  /** Import recipes from text (e.g. a recipe someone sent you in a chat). */
+  function pasteSheet() {
+    const sheet = openSheet(t('rec.importText'))
+    const area = h('textarea', { class: 'text-input area', rows: 8, placeholder: '{ "app": "FilmLab", … }' }) as HTMLTextAreaElement
+    sheet.body.append(
+      h('p', { class: 'sheet-note' }, t('rec.importTextNote')),
+      area,
+      h('div', { class: 'row end' },
+        h('button', { class: 'btn ghost', onclick: () => sheet.close() }, t('common.cancel')),
+        h('button', { class: 'btn', onclick: async () => {
+          try {
+            const n = await importRecipesJson(area.value)
+            toast(n ? t('rec.imported', { n }) : t('rec.importNone'), n ? 'info' : 'error')
+            if (n) { sheet.close(); tab = 'saved'; draw() }
+          } catch { toast(t('rec.importBad'), 'error') }
+        } }, t('rec.importDo')),
+      ),
+    )
   }
 
   fileInput.addEventListener('change', async () => {
