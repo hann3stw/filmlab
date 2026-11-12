@@ -39,3 +39,9 @@ export async function shareFiles(files: File[]): Promise<boolean> {
     return false
   }
 }
+
+/** Share if the phone can share this file type; otherwise download it. */
+export async function shareOrSave(file: File): Promise<void> {
+  if (navigator.canShare?.({ files: [file] })) await shareFiles([file])
+  else await saveFiles([file])
+}

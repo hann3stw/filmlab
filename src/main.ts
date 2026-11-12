@@ -16,6 +16,8 @@ import { libraryView } from './views/library.ts'
 import { recipesView } from './views/recipes.ts'
 import { cameraView } from './views/camera.ts'
 import { editorView } from './views/editor.ts'
+import { recipeView, recipeSources } from './views/recipe.ts'
+import { addRecipeSource } from './app/recipe-picker.ts'
 import { initTheme } from './app/theme.ts'
 import { registerServiceWorker } from './app/sw-register.ts'
 
@@ -28,6 +30,8 @@ addRoute('library', libraryView)
 addRoute('recipes', recipesView)
 addRoute('camera', cameraView)
 addRoute('edit', editorView, { tab: 'library', fullscreen: true })
+addRoute('recipe', recipeView, { tab: 'recipes', fullscreen: true })
+addRecipeSource(recipeSources)
 
 startShell(document.getElementById('app')!)
 void cameraService.init()

@@ -13,6 +13,7 @@ import { cameraService } from '../camera/camera-service.ts'
 import { cameraPill, header } from '../app/components.ts'
 import { createDebugPanel } from '../ui/debug-log.ts'
 import type { View } from '../app/shell.ts'
+import { slotsCard } from './slots.ts'
 
 const STEPS: { title: keyof Dict; text: keyof Dict }[] = [
   { title: 'cam.step1.title', text: 'cam.step1.text' },
@@ -28,6 +29,7 @@ export const cameraView: View = root => {
   const connectBtn = h('button', { class: 'btn', onclick: () => cameraService.connectInteractive() },
     h('span', { html: icons.usb }), t('cam.connect'))
   const disconnectBtn = h('button', { class: 'btn ghost', onclick: () => cameraService.disconnect() }, t('cam.disconnect'))
+  const slots = slotsCard()
   const steps = h('ol', { class: 'steps' },
     ...STEPS.map((s, i) => h('li', null,
       h('span', { class: 'step-no' }, String(i + 1)),
@@ -44,6 +46,7 @@ export const cameraView: View = root => {
       h('div', { class: 'row wrap' }, connectBtn, disconnectBtn),
     ),
     h('section', { class: 'section' }, h('h2', null, t('cam.howto')), steps),
+    h('section', { class: 'section' }, slots),
     h('section', { class: 'section' },
       h('details', { class: 'fold' },
         h('summary', null, h('span', { class: 'label' }, t('cam.debug'))),
@@ -80,5 +83,5 @@ export const cameraView: View = root => {
   }
   update()
   const off = cameraService.subscribe(update)
-  return () => { off(); pill.dispose() }
+  return () => { off(); pill.dispose(); slots.dispose() }
 }

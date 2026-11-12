@@ -13,13 +13,15 @@
  * render, the next render starts as soon as the camera is free.
  */
 
-import { h, debounce, toast, openSheet, type Sheet } from '../ui/dom.ts'
+import { h, debounce, toast, openSheet, promptSheet, type Sheet } from '../ui/dom.ts'
+import { createRecipe } from '../recipes/store.ts'
+import { pickRecipe } from '../app/recipe-picker.ts'
 import { icons } from '../ui/icons.ts'
 import { t } from '../i18n/index.ts'
 import { cameraService, CancelledError } from '../camera/camera-service.ts'
 import type { ConvertStage } from '../camera/ptp/session.ts'
 import { FIELDS, TONE_FIELDS, recipesEqual, summarize, type FieldDef, type Recipe } from '../recipes/recipe.ts'
-import { getPhoto, markExported, previewBlob, rafBytes, resultFile, saveResult, type Photo } from '../library/photos.ts'
+import { getPhoto, makeThumbnail, markExported, previewBlob, rafBytes, resultFile, saveResult, type Photo } from '../library/photos.ts'
 import { cameraPill } from '../app/components.ts'
 import { navigate, type View } from '../app/shell.ts'
 import { log } from '../ui/debug-log.ts'
@@ -55,6 +57,8 @@ export const editorView: View = (root, [photoId]) => {
   const downloadBtn = h('button', { class: 'btn' }, h('span', { html: icons.download }), t('ed.save'))
   const shareBtn = h('button', { class: 'btn ghost', 'aria-label': t('ed.share') }, h('span', { html: icons.share }))
   const resetBtn = h('button', { class: 'btn ghost' }, t('ed.reset'))
+  const saveRecipeBtn = h('button', { class: 'btn ghost small' }, h('span', { html: icons.plus }), t('ed.saveRecipe'))
+  const pickRecipeBtn = h('button', { class: 'btn ghost small' }, h('span', { html: icons.recipes }), t('ed.pickRecipe'))
   const title = h('div', { class: 'ed-title' })
 
   root.append(
@@ -67,6 +71,7 @@ export const editorView: View = (root, [photoId]) => {
       h('div', { class: 'ed-main' },
         h('div', { class: 'ed-left' }, stage, h('div', { class: 'ed-meta' }, statusLine, pill), summaryLine),
         h('div', { class: 'ed-right' },
+          h('div', { class: 'row wrap' }, pickRecipeBtn, saveRecipeBtn),
           grid,
           h('div', { class: 'ed-actions' }, downloadBtn, shareBtn, resetBtn),
         ),
@@ -260,6 +265,30 @@ export const editorView: View = (root, [photoId]) => {
     if (!photo) return
     pushHistory(recipe)
     recipe = { ...photo.asShot }
+    drawTiles()
+    scheduleRender()
+  })
+
+  // "Save recipe": name it → stored in the Recipes tab, with this photo's
+  // render as its thumbnail.
+  saveRecipeBtn.addEventListener('click', async () => {
+    if (!photo) return
+    const name = await promptSheet(t('ed.saveRecipe'), t('rec.name'), t('common.save'), t('common.cancel'))
+    if (!name) return
+    let thumb: Blob | null = null
+    const res = !isDirty() ? await resultFile(photo.id) : null
+    if (res) thumb = (await makeThumbnail(res, 640)).blob
+    await createRecipe(name, recipe, 'mine', thumb, photo.id)
+    toast(t('ed.recipeSaved', { name }))
+  })
+
+  // "Recipe": replace all settings with a saved recipe (one undo step).
+  pickRecipeBtn.addEventListener('click', async () => {
+    if (!photo) return
+    const choice = await pickRecipe()
+    if (!choice) return
+    pushHistory(recipe)
+    recipe = { ...(choice.kind === 'asShot' ? photo.asShot : choice.recipe) }
     drawTiles()
     scheduleRender()
   })

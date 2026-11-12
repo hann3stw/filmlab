@@ -4,7 +4,9 @@
  */
 
 import { h } from '../ui/dom.ts'
-import { t } from '../i18n/index.ts'
+import { t, getLang } from '../i18n/index.ts'
+import { BUNDLED } from '../recipes/bundled.ts'
+import { filmSimName } from '../recipes/recipe.ts'
 import { cameraPill, header, importButton, langSwitch, themeSwitch, thumb } from '../app/components.ts'
 import { listPhotos, onPhotosChanged } from '../library/photos.ts'
 import { navigate, type View } from '../app/shell.ts'
@@ -28,8 +30,13 @@ export const homeView: View = root => {
     ),
     recentSection,
     h('section', { class: 'section' },
-      h('div', { class: 'section-head' }, h('h2', null, t('home.popular'))),
-      h('p', { class: 'muted' }, t('home.popularSoon')),
+      h('div', { class: 'section-head' }, h('h2', null, t('home.popular')),
+        h('a', { class: 'link label', href: '#/recipes' }, t('home.allRecipes'))),
+      h('div', { class: 'pop-row' }, ...BUNDLED.map(b => h('a', { class: 'pop-card', href: `#/recipe/b:${b.key}` },
+        h('div', { class: 'label' }, filmSimName(b.recipe.filmSimulation)),
+        h('div', { class: 'pop-name' }, b.name),
+        h('div', { class: 'pop-note' }, b.note[getLang()]),
+      ))),
     ),
     h('section', { class: 'section' },
       h('div', { class: 'section-head' }, h('h2', null, t('home.appearance'))),

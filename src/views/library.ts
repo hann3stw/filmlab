@@ -27,7 +27,7 @@ import { openViewer } from './viewer.ts'
 import { navigate, type View } from '../app/shell.ts'
 import { filmSimName } from '../recipes/recipe.ts'
 import { pickRecipe } from '../app/recipe-picker.ts'
-import { applyRecipeBatch } from '../library/batch.ts'
+import { runBatch } from '../app/batch-ui.ts'
 import { saveFiles, shareFiles } from '../library/export.ts'
 import { cameraService } from '../camera/camera-service.ts'
 import { storageEstimate } from '../storage/opfs.ts'
@@ -201,30 +201,10 @@ export const libraryView: View = root => {
     if (!cameraService.isReady) { toast(t('lib.needCamera'), 'error'); return }
     const choice = await pickRecipe()
     if (!choice) return
-
-    let cancelled = false
-    const text = h('p', { class: 'sheet-text' })
-    const bar = h('div', { class: 'progress-bar' }, h('i'))
-    const sheet = openSheet(t('lib.batchTitle'), () => { cancelled = true })
-    sheet.body.append(text, bar, h('div', { class: 'row end' },
-      h('button', { class: 'btn ghost', onclick: () => sheet.close() }, t('common.cancel'))))
-
-    // "As shot" = each photo's own original settings, so resolve per photo.
-    const byId = new Map(all.map(p => [p.id, p]))
-    let ok = 0, failed = 0, skippedN = 0
-    for (let i = 0; i < ids.length && !cancelled; i++) {
-      const p = byId.get(ids[i])
-      if (!p) continue
-      const recipe = choice.kind === 'asShot' ? p.asShot : choice.recipe
-      const r = await applyRecipeBatch([p.id], recipe, () => {
-        text.textContent = t('lib.batchProgress', { done: i + 1, total: ids.length, name: p.fileName })
-        ;(bar.firstElementChild as HTMLElement).style.width = `${(i / ids.length) * 100}%`
-      }, () => cancelled)
-      ok += r.ok; failed += r.failed; skippedN += r.skipped
-    }
-    if (!cancelled) sheet.close()
+    // "As shot" = each photo's own original settings, so it is resolved per photo.
+    const done = await runBatch(ids, p => (choice.kind === 'asShot' ? p.asShot : choice.recipe))
+    if (done === null) return
     await refresh()
-    toast(t('lib.batchDone', { ok, failed: failed + skippedN }), failed ? 'error' : 'info')
     stopSelecting()
   }
 

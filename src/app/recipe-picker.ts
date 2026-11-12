@@ -17,15 +17,16 @@ export type RecipeSource = () => Promise<{ name: string; recipe: Recipe }[]>
 const extraSources: RecipeSource[] = []
 export function addRecipeSource(src: RecipeSource): void { extraSources.push(src) }
 
-export function pickRecipe(): Promise<RecipeChoice | null> {
+export function pickRecipe(opts: { allowAsShot?: boolean } = {}): Promise<RecipeChoice | null> {
   return new Promise(resolve => {
     let result: RecipeChoice | null = null
     const s = openSheet(t('pick.title'), () => resolve(result))
     const choose = (c: RecipeChoice) => { result = c; s.close() }
-    const list = h('div', { class: 'opt-list' },
-      h('button', { class: 'opt', onclick: () => choose({ kind: 'asShot' }) },
-        h('span', null, t('ed.asShot')), h('span', { class: 'label' }, t('pick.reset'))),
-    )
+    const list = h('div', { class: 'opt-list' })
+    if (opts.allowAsShot !== false) {
+      list.append(h('button', { class: 'opt', onclick: () => choose({ kind: 'asShot' }) },
+        h('span', null, t('ed.asShot')), h('span', { class: 'label' }, t('pick.reset'))))
+    }
     s.body.append(list)
 
     void (async () => {

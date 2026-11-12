@@ -7,10 +7,10 @@
  */
 
 const DB_NAME = 'filmlab'
-const DB_VERSION = 2 // 2: added 'albums'
+const DB_VERSION = 3 // 2: added 'albums', 3: added 'recipes'
 
 /** Names of the "tables" (object stores). */
-export type StoreName = 'photos' | 'albums' | 'kv'
+export type StoreName = 'photos' | 'albums' | 'recipes' | 'kv'
 
 let dbPromise: Promise<IDBDatabase> | null = null
 
@@ -27,6 +27,7 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv')
       if (!db.objectStoreNames.contains('albums')) db.createObjectStore('albums', { keyPath: 'id' })
+      if (!db.objectStoreNames.contains('recipes')) db.createObjectStore('recipes', { keyPath: 'id' })
     }
     req.onsuccess = () => {
       // If a newer app version (in another tab) needs to upgrade the
