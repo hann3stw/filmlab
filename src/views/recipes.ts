@@ -11,7 +11,7 @@ import { navigate, type View } from '../app/shell.ts'
 import { summarize, filmSimName } from '../recipes/recipe.ts'
 import { listRecipes, onRecipesChanged, recipeThumbUrl, importRecipesJson, recipesToJson, type SavedRecipe } from '../recipes/store.ts'
 import { BUNDLED } from '../recipes/bundled.ts'
-import { shareOrSave } from '../library/export.ts'
+import { exportJson } from '../library/export.ts'
 import { log } from '../ui/debug-log.ts'
 
 type Tab = 'all' | 'mine' | 'saved'
@@ -67,8 +67,7 @@ export const recipesView: View = root => {
       h('button', { class: 'opt', onclick: () => { sheet.close(); fileInput.click() } }, t('rec.importJson')),
       h('button', { class: 'opt', disabled: !all.length, onclick: async () => {
         sheet.close()
-        const file = new File([recipesToJson(all)], 'filmlab-recipes.json', { type: 'application/json' })
-        await shareOrSave(file)
+        await exportJson('filmlab-recipes.json', recipesToJson(all))
       } }, t('rec.exportAll', { n: all.length })),
     ))
   }

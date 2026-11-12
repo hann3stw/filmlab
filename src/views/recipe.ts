@@ -18,7 +18,7 @@ import { runBatch } from '../app/batch-ui.ts'
 import { loadRecipeOntoCamera } from './slots.ts'
 import { renderRecipeCard } from '../recipes/card.ts'
 import { listPhotos, resultFile, thumbUrl, type Photo } from '../library/photos.ts'
-import { shareOrSave } from '../library/export.ts'
+import { shareOrSave, exportJson } from '../library/export.ts'
 
 export const recipeView: View = (root, [id]) => {
   let disposed = false
@@ -87,8 +87,7 @@ export const recipeView: View = (root, [id]) => {
           action(icons.camera, t('rec.toCamera'), () => void loadRecipeOntoCamera(rec.name, rec.recipe)),
           action(icons.share, t('rec.card'), () => void exportCard(rec)),
           action(icons.download, t('rec.exportJson'), async () => {
-            const file = new File([recipesToJson([rec])], `${rec.name.replace(/[^\w-]+/g, '_')}.json`, { type: 'application/json' })
-            await shareOrSave(file)
+            await exportJson(`${rec.name.replace(/[^\w-]+/g, '_')}.json`, recipesToJson([rec]))
           }),
           bundled ? '' : action(icons.recipes, t('rec.duplicate'), async () => {
             const name = await promptSheet(t('rec.duplicate'), t('rec.name'), t('common.create'), t('common.cancel'), `${rec.name} 2`)

@@ -45,3 +45,25 @@ export async function shareOrSave(file: File): Promise<void> {
   if (navigator.canShare?.({ files: [file] })) await shareFiles([file])
   else await saveFiles([file])
 }
+
+/**
+ * Export a recipe JSON. Android's share sheet refuses .json FILES, so we try:
+ *   1. share as a file (works on some systems)
+ *   2. share the JSON as plain TEXT (works with every chat / mail / notes app)
+ *   3. download it, and say exactly where it went
+ */
+export async function exportJson(fileName: string, json: string): Promise<void> {
+  const file = new File([json], fileName, { type: 'application/json' })
+  try {
+    if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return }
+    if (navigator.share) { await navigator.share({ title: fileName, text: json }); return }
+  } catch (err) {
+    if ((err as DOMException).name === 'AbortError') return // user closed the share sheet
+    log(`JSON share failed (${err}) — downloading instead`, 'warn')
+  }
+  const url = URL.createObjectURL(file)
+  const a = h('a', { href: url, download: fileName })
+  document.body.append(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 30_000)
+  toast(t('export.savedFile', { name: fileName }), 'info', 6000)
+}

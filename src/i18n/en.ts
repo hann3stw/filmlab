@@ -273,4 +273,5 @@ export const en = {
   'slots.restored': "All slots restored",
   'slots.restoreFailed': "Could not restore: {slots}",
   'slots.restoreInterrupted': "The connection broke during the restore. Reconnect the camera and restore again.",
+  'export.savedFile': '"{name}" saved to the Download folder (Files app › Downloads)',
 }

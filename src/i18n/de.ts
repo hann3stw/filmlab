@@ -275,4 +275,5 @@ export const de: Record<keyof typeof en, string> = {
   'slots.restored': "Alle Slots wiederhergestellt",
   'slots.restoreFailed': "Nicht wiederhergestellt: {slots}",
   'slots.restoreInterrupted': "Die Verbindung ist beim Wiederherstellen abgebrochen. Verbinde die Kamera neu und stelle das Backup noch einmal wieder her.",
+  'export.savedFile': '„{name}“ im Ordner „Download“ gespeichert (Dateien-App › Downloads)',
 }
