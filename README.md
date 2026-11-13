@@ -1,3 +1,5 @@
+> **Moved:** FilmLab now lives at https://filmlab-app.github.io/ — repository [filmlab-app/filmlab-app.github.io](https://github.com/filmlab-app/filmlab-app.github.io). This repository is no longer maintained.
+
 # FilmLab
 
 A Progressive Web App for Fujifilm cameras (built for the X-T30 III) that runs in

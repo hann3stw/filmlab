@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FilmLab ist umgezogen</title>
+  <meta http-equiv="refresh" content="3; url=https://filmlab-app.github.io/" />
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #EFE7D6; color: #2A2A22;
+           font-family: Georgia, serif; text-align: center; padding: 24px; box-sizing: border-box; }
+    a { color: #3B4527; font-family: ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>FilmLab ist umgezogen</h1>
+    <p>Neue Adresse: <a href="https://filmlab-app.github.io/">filmlab-app.github.io</a></p>
+    <p>Du wirst gleich weitergeleitet. / You are being redirected.</p>
+  </main>
+  <script>
+    // Remove the old offline copy of the app (service worker + caches) from
+    // this address, then go to the new one.
+    (async () => {
+      try {
+        for (const r of await navigator.serviceWorker?.getRegistrations?.() ?? []) await r.unregister()
+        for (const k of await caches.keys()) await caches.delete(k)
+      } catch { /* nothing to clean */ }
+      location.replace('https://filmlab-app.github.io/')
+    })()
+  </script>
+</body>
+</html>
